@@ -40,6 +40,8 @@ A complete, reusable **FastAPI + MongoDB** authentication and authorization temp
 
 ## How to Run
 ```bash
+py main.py
+OR
 uvicorn main:app --reload
 ```
 Docs available at `http://127.0.0.1:8000/docs`
