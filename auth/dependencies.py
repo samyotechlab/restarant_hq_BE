@@ -40,3 +40,22 @@ def require_roles(*roles: str):
         return user
 
     return role_checker
+
+
+def require_self_or_admin(user_id_param: str = "user_id"):
+    """
+    Allow access if user is admin OR accessing their own resource.
+    Expects a path parameter with the user_id to check against.
+    """
+    async def self_or_admin_checker(
+        user_id: str,
+        user: dict = Depends(get_current_user)
+    ) -> dict:
+        if user.get("role") == "admin" or str(user["_id"]) == user_id:
+            return user
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. You can only access your own resources or must be an admin.",
+        )
+
+    return self_or_admin_checker

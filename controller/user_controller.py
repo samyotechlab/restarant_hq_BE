@@ -50,12 +50,6 @@ class UserController:
         update_fields = data.model_dump(exclude_unset=True)
         if "password" in update_fields:
             update_fields["password"] = hash_password(update_fields["password"])
-        if "role" in update_fields:
-            update_fields["role"] = (
-                update_fields["role"].value 
-                if hasattr(update_fields["role"], "value") 
-                else update_fields["role"]
-            )
 
         update_fields["updated_at"] = datetime.now(timezone.utc)
 

@@ -1,6 +1,6 @@
 from typing import List
 from fastapi import APIRouter, Depends, status
-from auth.dependencies import get_current_user, require_roles
+from auth.dependencies import get_current_user, require_roles, require_self_or_admin
 from db.database import get_db
 from models import UserResponse, UserUpdate, StandardResponse
 from controller.user_controller import UserController
@@ -23,11 +23,11 @@ async def get_me(current_user: dict = Depends(get_current_user)):
 @router.get(
     "/",
     response_model=StandardResponse[List[UserResponse]],
-    summary="Get all users (admin only)",
+    summary="Get all users",
 )
 async def get_all_users(
     db=Depends(get_db),
-    _: dict = Depends(require_roles("super_admin")),
+    current_user: dict = Depends(require_roles("admin")),
 ):
     result = await UserController.get_all_users(db)
     return StandardResponse(
@@ -39,12 +39,12 @@ async def get_all_users(
 @router.get(
     "/{user_id}",
     response_model=StandardResponse[UserResponse],
-    summary="Get a user by ID (admin only)",
+    summary="Get a user by ID",
 )
 async def get_user_by_id(
     user_id: str,
     db=Depends(get_db),
-    _: dict = Depends(require_roles("super_admin")),
+    current_user: dict = Depends(require_self_or_admin()),
 ):
     result = await UserController.get_user_by_id(user_id, db)
     return StandardResponse(
@@ -80,7 +80,7 @@ async def update_user(
 async def delete_user(
     user_id: str,
     db=Depends(get_db),
-    _: dict = Depends(require_roles("super_admin")),
+    current_user: dict = Depends(require_roles("admin")),
 ):
     result = await UserController.delete_user(user_id, db)
     return StandardResponse(
