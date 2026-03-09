@@ -1,0 +1,156 @@
+from fastapi import APIRouter, Depends, status
+from auth.dependencies import get_current_user                                  # ← ADDED
+from db.database import get_db
+from models.customers_model import CustomerCreate, CustomerResponse, CustomerUpdate, BulkUploadResponse
+from models.base_model import StandardResponse
+from controller.customers_controller import CustomerController
+
+router = APIRouter(prefix="/customers", tags=["Customers"])
+
+
+@router.post(
+    "/",
+    response_model=StandardResponse[CustomerResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new customer",
+)
+async def create_customer(
+    data: CustomerCreate,
+    db=Depends(get_db),
+    _: dict = Depends(get_current_user),                                        # ← ADDED
+):
+    """
+    Register a new customer.
+    Rejects duplicate emails with a 400 error.
+    """
+    result = await CustomerController.create_customer(data, db)
+    return StandardResponse(
+        status_code=status.HTTP_201_CREATED,
+        message="Customer Created Successfully",
+        result_data=result,
+    )
+
+
+@router.get(
+    "/",
+    response_model=StandardResponse[list[CustomerResponse]],
+    summary="Get all customers",
+)
+async def get_all_customers(
+    db=Depends(get_db),
+    _: dict = Depends(get_current_user),                                        # ← ADDED
+):
+    """Return a list of all customers."""
+    result = await CustomerController.get_all_customers(db)
+    return StandardResponse(
+        status_code=status.HTTP_200_OK,
+        message="Customers Fetched Successfully",
+        result_data=result,
+    )
+
+
+@router.get(
+    "/{customer_id}",
+    response_model=StandardResponse[CustomerResponse],
+    summary="Get a single customer by ID",
+)
+async def get_customer(
+    customer_id: str,
+    db=Depends(get_db),
+    _: dict = Depends(get_current_user),                                        # ← ADDED
+):
+    """Fetch one customer by their ID. Returns 404 if not found."""
+    result = await CustomerController.get_customer(customer_id, db)
+    return StandardResponse(
+        status_code=status.HTTP_200_OK,
+        message="Customer Fetched Successfully",
+        result_data=result,
+    )
+
+
+@router.patch(
+    "/{customer_id}",
+    response_model=StandardResponse[CustomerResponse],
+    summary="Partially update a customer",
+)
+async def update_customer(
+    customer_id: str,
+    data: CustomerUpdate,
+    db=Depends(get_db),
+    _: dict = Depends(get_current_user),                                        # ← ADDED
+):
+    """
+    Update one or more fields of a customer.
+    Only fields included in the request body are changed.
+    """
+    result = await CustomerController.update_customer(customer_id, data, db)
+    return StandardResponse(
+        status_code=status.HTTP_200_OK,
+        message="Customer Updated Successfully",
+        result_data=result,
+    )
+
+
+@router.delete(
+    "/{customer_id}",
+    response_model=StandardResponse[dict],
+    summary="Delete a customer",
+)
+async def delete_customer(
+    customer_id: str,
+    db=Depends(get_db),
+    _: dict = Depends(get_current_user),                                        # ← ADDED
+):
+    """Hard-delete a customer. Returns the deleted customer's ID."""
+    result = await CustomerController.delete_customer(customer_id, db)
+    return StandardResponse(
+        status_code=status.HTTP_200_OK,
+        message="Customer Deleted Successfully",
+        result_data=result,
+    )
+
+
+@router.post(
+    "/{customer_id}/orders/{order_id}",
+    response_model=StandardResponse[CustomerResponse],
+    summary="Link an order to a customer",
+)
+async def add_order_to_customer(
+    customer_id: str,
+    order_id: str,
+    db=Depends(get_db),
+    _: dict = Depends(get_current_user),                                        # ← ADDED
+):
+    """
+    Attach an order ID to the customer's orders list.
+    Duplicate order IDs are automatically ignored.
+    """
+    result = await CustomerController.add_order(customer_id, order_id, db)
+    return StandardResponse(
+        status_code=status.HTTP_200_OK,
+        message="Order Linked Successfully",
+        result_data=result,
+    )
+
+
+@router.post(
+    "/bulk_upload",
+    response_model=StandardResponse[BulkUploadResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary="Bulk upload customers via array of objects",
+)
+async def bulk_upload_customers(
+    data: list[CustomerCreate],
+    db=Depends(get_db),
+    _: dict = Depends(get_current_user),                                        # ← ADDED
+):
+    """
+    Upload multiple customers in one request as a JSON array.
+    Failed entries are skipped and reported individually in the response.
+    """
+    result = await CustomerController.bulk_create_customers(data, db)
+    return StandardResponse(
+        status_code=status.HTTP_201_CREATED,
+        message="Bulk Upload Completed",
+        result_data=result,
+    )
