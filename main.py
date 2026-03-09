@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from db.database import connect_db, close_db
 from routers import auth_router, user_router
+from routers.customers_router import router as customers_router
 
 
 @asynccontextmanager
@@ -38,6 +39,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(user_router)
+app.include_router(customers_router)
 
 
 @app.get("/", tags=["Health"], summary="API health check")
