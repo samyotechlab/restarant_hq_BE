@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, status
-from auth.dependencies import get_current_user                                  # ← ADDED
+from fastapi import APIRouter, Depends, status, Query
+from auth.dependencies import get_current_user                                  
 from db.database import get_db
-from models.customers_model import CustomerCreate, CustomerResponse, CustomerUpdate, BulkUploadResponse
+from models.customers_model import CustomerCreate, CustomerResponse, CustomerUpdate, BulkUploadResponse, PaginatedCustomerResponse
 from models.base_model import StandardResponse
 from controller.customers_controller import CustomerController
 
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/customers", tags=["Customers"])
 async def create_customer(
     data: CustomerCreate,
     db=Depends(get_db),
-    _: dict = Depends(get_current_user),                                        # ← ADDED
+    _: dict = Depends(get_current_user),                                        
 ):
     """
     Register a new customer.
@@ -33,15 +33,17 @@ async def create_customer(
 
 @router.get(
     "/",
-    response_model=StandardResponse[list[CustomerResponse]],
-    summary="Get all customers",
+    response_model=StandardResponse[PaginatedCustomerResponse],
+    summary="Get all customers with pagination",
 )
 async def get_all_customers(
+    page: int = Query(default=1, ge=1, description="Page number"),
+    limit: int = Query(default=10, ge=1, le=100, description="Items per page"),
     db=Depends(get_db),
-    _: dict = Depends(get_current_user),                                        # ← ADDED
+    _: dict = Depends(get_current_user),                                        
 ):
-    """Return a list of all customers."""
-    result = await CustomerController.get_all_customers(db)
+    """Return a paginated list of customers. Defaults to page 1 with 10 items."""
+    result = await CustomerController.get_all_customers(db, page, limit)
     return StandardResponse(
         status_code=status.HTTP_200_OK,
         message="Customers Fetched Successfully",
@@ -57,7 +59,7 @@ async def get_all_customers(
 async def get_customer(
     customer_id: str,
     db=Depends(get_db),
-    _: dict = Depends(get_current_user),                                        # ← ADDED
+    _: dict = Depends(get_current_user),                                        
 ):
     """Fetch one customer by their ID. Returns 404 if not found."""
     result = await CustomerController.get_customer(customer_id, db)
@@ -77,7 +79,7 @@ async def update_customer(
     customer_id: str,
     data: CustomerUpdate,
     db=Depends(get_db),
-    _: dict = Depends(get_current_user),                                        # ← ADDED
+    _: dict = Depends(get_current_user),                                        
 ):
     """
     Update one or more fields of a customer.
@@ -99,7 +101,6 @@ async def update_customer(
 async def delete_customer(
     customer_id: str,
     db=Depends(get_db),
-    _: dict = Depends(get_current_user),                                        # ← ADDED
 ):
     """Hard-delete a customer. Returns the deleted customer's ID."""
     result = await CustomerController.delete_customer(customer_id, db)
@@ -119,7 +120,7 @@ async def add_order_to_customer(
     customer_id: str,
     order_id: str,
     db=Depends(get_db),
-    _: dict = Depends(get_current_user),                                        # ← ADDED
+    _: dict = Depends(get_current_user),                                        
 ):
     """
     Attach an order ID to the customer's orders list.
@@ -142,7 +143,7 @@ async def add_order_to_customer(
 async def bulk_upload_customers(
     data: list[CustomerCreate],
     db=Depends(get_db),
-    _: dict = Depends(get_current_user),                                        # ← ADDED
+    _: dict = Depends(get_current_user),                                       
 ):
     """
     Upload multiple customers in one request as a JSON array.

@@ -67,3 +67,13 @@ class BulkUploadResponse(BaseModel):
     inserted: int
     failed: int
     results: List[BulkUploadResult]
+
+
+class PaginatedCustomerResponse(BaseModel):
+    """Wraps a page of customers with metadata for the frontend."""
+    total_results: int         
+    page: int           
+    limit: int         
+    total_pages: int    
+    data: List[CustomerResponse]
+
