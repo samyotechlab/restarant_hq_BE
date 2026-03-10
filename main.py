@@ -1,10 +1,12 @@
 from contextlib import asynccontextmanager
 
+from fastapi.responses import JSONResponse
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from db.database import connect_db, close_db
+from models.base_model import StandardResponse
 from routers import auth_router, user_router
 from routers.customers_router import router as customers_router
 
@@ -22,6 +24,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=StandardResponse(
+            status_code=exc.status_code,
+            message=exc.detail,
+            result_data=None,
+        ).model_dump(),
+    )
 ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:8080",
