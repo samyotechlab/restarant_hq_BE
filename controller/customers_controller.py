@@ -1,9 +1,10 @@
+import math
 from datetime import datetime, timezone
 from uuid import uuid4
 from bson import ObjectId
 from fastapi import HTTPException, status
 
-from models.customers_model import CustomerCreate, CustomerResponse, CustomerUpdate, CustomerStatus, BulkUploadResult, BulkUploadResponse
+from models.customers_model import CustomerCreate, CustomerResponse, CustomerUpdate, CustomerStatus, BulkUploadResult, BulkUploadResponse, PaginatedCustomerResponse
 
 
 def _to_response(doc: dict) -> CustomerResponse:
@@ -48,7 +49,7 @@ class CustomerController:
 
         now = datetime.now(timezone.utc)
         customer_doc = {
-            "customer_id": f"CUS-{uuid4().hex[:8].upper()}",  # e.g. CUS-3F9A1B2C
+            "customer_id": f"CUS-{uuid4().hex[:8].upper()}",  
             "name": data.name,
             "country_code": data.country_code,
             "phone_number": data.phone_number,
@@ -80,10 +81,21 @@ class CustomerController:
         return _to_response(customer)
 
     @staticmethod
-    async def get_all_customers(db) -> list[CustomerResponse]:
-        """Return every customer in the collection."""
-        customers = await db["customers"].find().to_list(length=None)
-        return [_to_response(c) for c in customers]
+    async def get_all_customers(db, page: int = 1, limit: int = 10) -> PaginatedCustomerResponse:
+        """Return a paginated list of customers."""
+        skip = (page - 1) * limit
+
+        total_results = await db["customers"].count_documents({})
+        customers = await db["customers"].find().skip(skip).limit(limit).to_list(length=None)
+        total_pages = math.ceil(total_results / limit)
+
+        return PaginatedCustomerResponse(
+            total_results=total_results,
+            page=page,
+            limit=limit,
+            total_pages=total_pages,
+            data=[_to_response(c) for c in customers],
+        )
 
     @staticmethod
     async def update_customer(customer_id: str, data: CustomerUpdate, db) -> CustomerResponse:
@@ -176,7 +188,7 @@ class CustomerController:
                     "city": customer.city,
                     "pincode": customer.pincode,
                     "orders": [],
-                    "status": CustomerStatus.NEW.value,
+                    "status": customer.status,
                     "created_at": now,
                     "updated_at": now,
                 }
@@ -257,9 +269,8 @@ class CustomerController:
             else:
                 valid_customers.append((index, customer))
 
-        # insert valid ones
         inserted = 0
-        failed = len(results)
+        failed = len(results)  
 
         for index, customer in valid_customers:
             try:
@@ -301,7 +312,7 @@ class CustomerController:
                 ))
                 failed += 1
 
-        # sort results
+        # sort results by original row index so response is in order
         results.sort(key=lambda r: r.index)
 
         return BulkUploadResponse(
