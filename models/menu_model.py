@@ -16,7 +16,7 @@ class MenuItemCreate(BaseModel):
     category: str = Field(..., min_length=2, max_length=100)
     price: int = Field(..., gt=0)
     type: MenuItemType
-    offer: str = Field(..., min_length=2, max_length=200)
+    offer: Optional[str] = None
     available: bool = Field(default=True)
 
 
@@ -27,7 +27,7 @@ class MenuItemUpdate(BaseModel):
     category: Optional[str] = Field(None, min_length=2, max_length=100)
     price: Optional[int] = Field(None, gt=0)
     type: Optional[MenuItemType] = None
-    offer: Optional[str] = Field(None, min_length=2, max_length=200)
+    offer: Optional[str] = Field(None)
     available: Optional[bool] = None
 
 
