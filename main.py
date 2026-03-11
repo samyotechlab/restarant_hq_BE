@@ -24,18 +24,9 @@ app = FastAPI(
     title="Restaurant HQ FastAPI Backend",
     version="1.0.0",
     lifespan=lifespan,
+    redirect_slashes=False
 )
 
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException):
-    return JSONResponse(
-        status_code=exc.status_code,
-        content=StandardResponse(
-            status_code=exc.status_code,
-            message=exc.detail,
-            result_data=None,
-        ).model_dump(),
-    )
 ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:8080",
@@ -52,6 +43,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=StandardResponse(
+            status_code=exc.status_code,
+            message=exc.detail,
+            result_data=None,
+        ).model_dump(),
+    )
+
 
 app.include_router(auth_router)
 app.include_router(user_router)
