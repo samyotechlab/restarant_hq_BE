@@ -16,7 +16,7 @@ class CustomerCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
     country_code: str = Field(..., min_length=2, max_length=5, examples=["+91", "+1"])
     phone_number: str = Field(..., min_length=7, max_length=15, examples=["9876543210"])
-    email: EmailStr
+    email: Optional[str] = None
     address: str = Field(..., min_length=5, max_length=300)
     city: str = Field(..., min_length=2, max_length=100)
     pincode: str = Field(..., min_length=4, max_length=10, examples=["452001"])
@@ -29,7 +29,7 @@ class CustomerUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=2, max_length=100)
     country_code: Optional[str] = Field(None, min_length=2, max_length=5)
     phone_number: Optional[str] = Field(None, min_length=7, max_length=15)
-    email: Optional[EmailStr] = None
+    email: Optional[str] = None
     address: Optional[str] = Field(None, min_length=5, max_length=300)
     city: Optional[str] = Field(None, min_length=2, max_length=100)
     pincode: Optional[str] = Field(None, min_length=4, max_length=10)
@@ -43,7 +43,7 @@ class CustomerResponse(BaseModel):
     name: str
     country_code: str
     phone_number: str
-    email: EmailStr
+    email: Optional[str] = None
     address: str
     city: str
     pincode: str

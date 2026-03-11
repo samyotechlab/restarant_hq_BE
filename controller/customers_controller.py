@@ -9,6 +9,9 @@ from models.customers_model import CustomerCreate, CustomerResponse, CustomerUpd
 
 def _to_response(doc: dict) -> CustomerResponse:
     """Convert a raw MongoDB document into a CustomerResponse."""
+    email = doc.get("email")
+    if email is None:
+        doc["email"] = None
     return CustomerResponse(
         id=str(doc["_id"]),
         customer_id=doc["customer_id"],
@@ -40,12 +43,13 @@ class CustomerController:
     @staticmethod
     async def create_customer(data: CustomerCreate, db) -> CustomerResponse:
         """Register a brand-new customer. Rejects duplicate emails."""
-        existing = await db["customers"].find_one({"email": data.email})
-        if existing:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="A customer with this email already exists.",
-            )
+        if data.email:
+            existing = await db["customers"].find_one({"email": data.email})
+            if existing:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="A customer with this email already exists.",
+                )
 
         now = datetime.now(timezone.utc)
         customer_doc = {
@@ -53,7 +57,7 @@ class CustomerController:
             "name": data.name,
             "country_code": data.country_code,
             "phone_number": data.phone_number,
-            "email": data.email,
+            "email": data.email if data.email else None,
             "address": data.address,
             "city": data.city,
             "pincode": data.pincode,
