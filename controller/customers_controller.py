@@ -1,5 +1,6 @@
 import math
 from datetime import datetime, timezone
+from typing import List
 from uuid import uuid4
 from bson import ObjectId
 from fastapi import HTTPException, status
@@ -83,9 +84,19 @@ class CustomerController:
                 detail="Customer not found.",
             )
         return _to_response(customer)
+    
+    @staticmethod
+    async def get_customer_by_phone(customer_phone: str, db) -> CustomerResponse:
+        customer = await db["customers"].find_one({"phone_number": customer_phone});
+        if not customer:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Customer not found.",
+            )
+        return _to_response(customer)
 
     @staticmethod
-    async def get_all_customers(db, page: int = 1, limit: int = 10) -> PaginatedCustomerResponse:
+    async def get_all_customers_paginated(db, page: int = 1, limit: int = 10) -> PaginatedCustomerResponse:
         """Return a paginated list of customers."""
         skip = (page - 1) * limit
 
@@ -100,6 +111,11 @@ class CustomerController:
             total_pages=total_pages,
             data=[_to_response(c) for c in customers],
         )
+    
+    @staticmethod
+    async def get_all_customers(db) -> List[CustomerResponse]:
+        customers = await db['customers'].find().sort("created_at", -1).to_list(length=None)
+        return [_to_response(c) for c in customers]
 
     @staticmethod
     async def update_customer(customer_id: str, data: CustomerUpdate, db) -> CustomerResponse:

@@ -1,5 +1,6 @@
 import math
 from datetime import datetime, timezone
+from typing import List
 from uuid import uuid4
 from bson import ObjectId
 from fastapi import HTTPException, status
@@ -78,7 +79,7 @@ class MenuController:
         return _to_response(item)
 
     @staticmethod
-    async def get_all_items(db, page: int = 1, limit: int = 10) -> PaginatedMenuResponse:
+    async def get_all_items_paginated(db, page: int = 1, limit: int = 10) -> PaginatedMenuResponse:
         """Return a paginated list of menu items."""
         skip = (page - 1) * limit
         total_results = await db["menu_items"].count_documents({})
@@ -92,6 +93,12 @@ class MenuController:
             total_pages=total_pages,
             data=[_to_response(i) for i in items],
         )
+
+    @staticmethod
+    async def get_all_items(db) -> List[MenuItemResponse]:
+        items = await db['menu_items'].find().sort('created_at', -1).to_list(length=None)
+        return [_to_response(i) for i in items]
+
 
     @staticmethod
     async def update_item(item_id: str, data: MenuItemUpdate, db) -> MenuItemResponse:

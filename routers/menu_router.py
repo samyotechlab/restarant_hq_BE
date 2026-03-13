@@ -1,3 +1,5 @@
+from typing import List
+
 from fastapi import APIRouter, Depends, status, Query
 from auth.dependencies import get_current_user
 from db.database import get_db
@@ -62,18 +64,32 @@ async def bulk_upload_menu_items(
     response_model=StandardResponse[PaginatedMenuResponse],
     summary="Get all menu items with pagination",
 )
-async def get_all_menu_items(
+async def get_all_menu_items_paginated(
     page: int = Query(default=1, ge=1, description="Page number"),
     limit: int = Query(default=10, ge=1, le=100, description="Items per page"),
     db=Depends(get_db),
     _: dict = Depends(get_current_user),
 ):
     """Return a paginated list of menu items."""
-    result = await MenuController.get_all_items(db, page, limit)
+    result = await MenuController.get_all_items_paginated(db, page, limit)
     return StandardResponse(
         status_code=status.HTTP_200_OK,
         message="Menu Items Fetched Successfully",
         result_data=result,
+    )
+
+
+@router.get(
+    "/fetch_all",
+    response_model=StandardResponse[List[MenuItemResponse]],
+    summary="Get all menu items",
+)
+async def get_all_items(db=Depends(get_db)):
+    result = await MenuController.get_all_items(db)
+    return StandardResponse(
+        status_code=status.HTTP_200_OK,
+        message="Menu Items Fetched Successfully",
+        result_data=result
     )
 
 

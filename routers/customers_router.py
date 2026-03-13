@@ -1,3 +1,5 @@
+from typing import List
+
 from fastapi import APIRouter, Depends, status, Query
 from auth.dependencies import get_current_user                                  
 from db.database import get_db
@@ -17,7 +19,7 @@ router = APIRouter(prefix="/customers", tags=["Customers"])
 async def create_customer(
     data: CustomerCreate,
     db=Depends(get_db),
-    _: dict = Depends(get_current_user),                                        
+    # _: dict = Depends(get_current_user),                                 
 ):
     """
     Register a new customer.
@@ -36,17 +38,50 @@ async def create_customer(
     response_model=StandardResponse[PaginatedCustomerResponse],
     summary="Get all customers with pagination",
 )
-async def get_all_customers(
+async def get_all_customers_paginated(
     page: int = Query(default=1, ge=1, description="Page number"),
     limit: int = Query(default=10, ge=1, le=100, description="Items per page"),
     db=Depends(get_db),
     _: dict = Depends(get_current_user),                                        
 ):
     """Return a paginated list of customers. Defaults to page 1 with 10 items."""
-    result = await CustomerController.get_all_customers(db, page, limit)
+    result = await CustomerController.get_all_customers_paginated(db, page, limit)
     return StandardResponse(
         status_code=status.HTTP_200_OK,
         message="Customers Fetched Successfully",
+        result_data=result,
+    )
+
+
+@router.get(
+    "/fetch_all",
+    response_model=StandardResponse[List[CustomerResponse]],
+    summary="Get all customers",
+)
+async def get_all_customers(db=Depends(get_db)):
+    """Return all the customers"""
+    result = await CustomerController.get_all_customers(db)
+    return StandardResponse(
+        status_code=status.HTTP_200_OK,
+        message="Customers Fetched Successfully",
+        result_data=result
+    )
+
+
+@router.get(
+    "/search",
+    response_model=StandardResponse[CustomerResponse],
+    summary="Get a single customer by Phone Number",
+)
+async def get_customer_by_phone(
+    phone: str = Query(..., description="The phone number of the customer"),
+    db=Depends(get_db),
+):
+    """Fetch one customer by their phone number. Returns 404 if not found."""
+    result = await CustomerController.get_customer_by_phone(phone, db)
+    return StandardResponse(
+        status_code=status.HTTP_200_OK,
+        message="Customer Fetched Successfully",
         result_data=result,
     )
 
@@ -101,6 +136,7 @@ async def update_customer(
 async def delete_customer(
     customer_id: str,
     db=Depends(get_db),
+    _: dict = Depends(get_current_user),
 ):
     """Hard-delete a customer. Returns the deleted customer's ID."""
     result = await CustomerController.delete_customer(customer_id, db)
