@@ -10,6 +10,7 @@ from models.base_model import StandardResponse
 from routers import auth_router, user_router
 from routers.customers_router import router as customers_router
 from routers.menu_router import router as menu_router
+from routers.session import router as session_router
 
 
 
@@ -59,6 +60,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 app.include_router(auth_router, prefix="/api")
 app.include_router(user_router, prefix="/api")
+app.include_router(session_router, prefix="/api")
 app.include_router(customers_router, prefix="/api")
 app.include_router(menu_router, prefix="/api")
 
