@@ -1,0 +1,27 @@
+
+services:
+
+  redis:
+    image: redis:alpine
+    container_name: gangour-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass GangourRedis@2026 --appendonly yes
+    volumes:
+      - redis_data:/data
+    restart: always
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: gangour-redis-ui
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379:0:GangourRedis@2026
+    depends_on:
+      - redis
+    restart: always
+
+volumes:
+  redis_data:
+    driver: local
