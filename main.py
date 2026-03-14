@@ -12,6 +12,7 @@ from routers.customers_router import router as customers_router
 from routers.menu_router import router as menu_router
 from routers.enquiry_router import router as enquiry_router
 from routers.session import router as session_router
+from routers.services_router import router as services_router
 
 
 
@@ -65,6 +66,7 @@ app.include_router(session_router, prefix="/api")
 app.include_router(customers_router, prefix="/api")
 app.include_router(menu_router, prefix="/api")
 app.include_router(enquiry_router, prefix="/api")
+app.include_router(services_router, prefix="/api")
 
 @app.get("/", tags=["Health"], summary="API health check")
 async def root():
