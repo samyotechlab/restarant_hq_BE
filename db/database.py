@@ -1,5 +1,6 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 from config.settings import settings
+from db.seed_services import seed_services as seed_services
 from db.seed import seed_admin_user
 
 client: AsyncIOMotorClient
@@ -16,6 +17,7 @@ async def connect_db():
     
     # Seed admin user on startup
     await seed_admin_user(db)
+    await seed_services(db) 
 
 
 async def close_db():
