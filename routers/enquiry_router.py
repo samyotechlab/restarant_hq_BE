@@ -1,3 +1,5 @@
+from typing import List
+
 from fastapi import APIRouter, Depends, status, Query
 from auth.dependencies import get_current_user
 from db.database import get_db
@@ -17,7 +19,6 @@ router = APIRouter(prefix="/enquiries", tags=["Enquiries"])
 async def create_enquiry(
     data: EnquiryCreate,
     db=Depends(get_db),
-    
 ):
     """Create a new enquiry."""
     result = await EnquiryController.create_enquiry(data, db)
@@ -33,14 +34,31 @@ async def create_enquiry(
     response_model=StandardResponse[PaginatedEnquiryResponse],
     summary="Get all enquiries with pagination",
 )
-async def get_all_enquiries(
+async def get_all_enquiries_paginated(
     page: int = Query(default=1, ge=1, description="Page number"),
     limit: int = Query(default=10, ge=1, le=100, description="Items per page"),
     db=Depends(get_db),
     _: dict = Depends(get_current_user),                
 ):
     """Return a paginated list of enquiries."""
-    result = await EnquiryController.get_all_enquiries(db, page, limit)
+    result = await EnquiryController.get_all_enquiries_paginated(db, page, limit)
+    return StandardResponse(
+        status_code=status.HTTP_200_OK,
+        message="Enquiries Fetched Successfully",
+        result_data=result,
+    )
+
+
+@router.get(
+    "/fetch_all",
+    response_model=StandardResponse[List[EnquiryResponse]],
+    summary="Get all enquiries",
+)
+async def get_all_enquiries(
+    db=Depends(get_db),              
+):
+    """Return a list of enquiries."""
+    result = await EnquiryController.get_all_enquiries(db)
     return StandardResponse(
         status_code=status.HTTP_200_OK,
         message="Enquiries Fetched Successfully",

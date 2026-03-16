@@ -1,3 +1,5 @@
+from typing import List
+
 from fastapi import APIRouter, Depends, status, Query
 from auth.dependencies import get_current_user
 from db.database import get_db
@@ -33,14 +35,28 @@ async def create_service(
     response_model=StandardResponse[PaginatedServiceResponse],
     summary="Get all services with pagination",
 )
-async def get_all_services(
+async def get_all_services_paginated(
     page: int = Query(default=1, ge=1, description="Page number"),
-    limit: int = Query(default=10, ge=1, le=100, description="Items per page"),
+    limit: int = Query(default=8, ge=1, le=100, description="Items per page"),
     db=Depends(get_db),
-    # no auth on get all
+    _: dict = Depends(get_current_user),
 ):
     """Return a paginated list of services. No authentication required."""
-    result = await ServiceController.get_all_services(db, page, limit)
+    result = await ServiceController.get_all_services_paginated(db, page, limit)
+    return StandardResponse(
+        status_code=status.HTTP_200_OK,
+        message="Services Fetched Successfully",
+        result_data=result,
+    )
+
+
+@router.get(
+    "/fetch_all",
+    response_model=StandardResponse[List[ServiceResponse]],
+    summary="Get all Services",
+)
+async def get_all_services(db=Depends(get_db)):
+    result = await ServiceController.get_all_services(db)
     return StandardResponse(
         status_code=status.HTTP_200_OK,
         message="Services Fetched Successfully",

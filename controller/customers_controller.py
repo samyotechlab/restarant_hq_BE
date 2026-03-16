@@ -101,7 +101,7 @@ class CustomerController:
         skip = (page - 1) * limit
 
         total_results = await db["customers"].count_documents({})
-        customers = await db["customers"].find().skip(skip).limit(limit).to_list(length=None)
+        customers = await db["customers"].find().skip(skip).limit(limit).sort("created_at", -1).to_list(length=None)
         total_pages = math.ceil(total_results / limit)
 
         return PaginatedCustomerResponse(

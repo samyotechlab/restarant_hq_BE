@@ -1,5 +1,6 @@
 import math
 from datetime import datetime, timezone
+from typing import List
 from uuid import uuid4
 from bson import ObjectId
 from fastapi import HTTPException, status
@@ -43,7 +44,7 @@ class ServiceController:
         """Create a new service."""
         now = datetime.now(timezone.utc)
         service_doc = {
-            "service_id": f"SRV-{uuid4().hex[:8].upper()}",    # e.g. SRV-3F9A1B2C
+            "service_id": f"SRV-{uuid4().hex[:8].upper()}",
             "service_name": data.service_name,
             "description": data.description,
             "pricing": data.pricing,
@@ -58,7 +59,7 @@ class ServiceController:
         return _to_response(service_doc)
 
     @staticmethod
-    async def get_all_services(db, page: int = 1, limit: int = 10) -> PaginatedServiceResponse:
+    async def get_all_services_paginated(db, page: int = 1, limit: int = 8) -> PaginatedServiceResponse:
         """Return a paginated list of services."""
         skip = (page - 1) * limit
 
@@ -73,6 +74,11 @@ class ServiceController:
             total_pages=total_pages,
             data=[_to_response(s) for s in services],
         )
+    
+    @staticmethod
+    async def get_all_services(db) -> List[ServiceResponse]:
+        services = await db['services'].find().sort('created_at', -1).to_list(length=None)
+        return [_to_response(s) for s in services]
 
     @staticmethod
     async def update_service(service_id: str, data: ServiceUpdate, db) -> ServiceResponse:

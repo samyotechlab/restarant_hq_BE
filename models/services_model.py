@@ -5,10 +5,10 @@ from pydantic import BaseModel, Field
 
 class ServiceCreate(BaseModel):
     """Payload the client sends when creating a new service."""
-    service_name: str = Field(..., min_length=2, max_length=100)
-    description: str = Field(..., min_length=2, max_length=500)
-    pricing: str = Field(..., min_length=1, max_length=200)
-    coverage_area: str = Field(..., min_length=2, max_length=200)
+    service_name: Optional[str] = Field(None, min_length=2, max_length=100)
+    description: Optional[str] = Field(None, min_length=2, max_length=500)
+    pricing: Optional[str] = Field(None, min_length=1, max_length=200)
+    coverage_area: Optional[str] = Field(None, min_length=2, max_length=200)
     is_active: bool = Field(default=True)
 
 

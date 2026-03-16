@@ -83,7 +83,7 @@ class MenuController:
         """Return a paginated list of menu items."""
         skip = (page - 1) * limit
         total_results = await db["menu_items"].count_documents({})
-        items = await db["menu_items"].find().skip(skip).limit(limit).to_list(length=None)
+        items = await db["menu_items"].find().skip(skip).limit(limit).sort("created_at", -1).to_list(length=None)
         total_pages = math.ceil(total_results / limit)
 
         return PaginatedMenuResponse(

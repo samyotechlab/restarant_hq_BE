@@ -1,5 +1,6 @@
 import math
 from datetime import datetime, timezone
+from typing import List
 from uuid import uuid4
 from bson import ObjectId
 from fastapi import HTTPException, status
@@ -71,12 +72,12 @@ class EnquiryController:
         return _to_response(enquiry)
 
     @staticmethod
-    async def get_all_enquiries(db, page: int = 1, limit: int = 10) -> PaginatedEnquiryResponse:
+    async def get_all_enquiries_paginated(db, page: int = 1, limit: int = 10) -> PaginatedEnquiryResponse:
         """Return a paginated list of enquiries."""
         skip = (page - 1) * limit
 
         total_results = await db["enquiries"].count_documents({})
-        enquiries = await db["enquiries"].find().skip(skip).limit(limit).to_list(length=None)
+        enquiries = await db["enquiries"].find().skip(skip).limit(limit).sort("created_at", -1).to_list(length=None)
         total_pages = math.ceil(total_results / limit)
 
         return PaginatedEnquiryResponse(
@@ -86,6 +87,11 @@ class EnquiryController:
             total_pages=total_pages,
             data=[_to_response(e) for e in enquiries],
         )
+    
+    @staticmethod
+    async def get_all_enquiries(db) -> List[EnquiryResponse]:
+        enquiries = await db['enquiries'].find().sort("created_at", -1).to_list(length=None)
+        return [_to_response(i) for i in enquiries]
 
     @staticmethod
     async def update_enquiry(enquiry_id: str, data: EnquiryUpdate, db) -> EnquiryResponse:

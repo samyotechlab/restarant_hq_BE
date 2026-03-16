@@ -7,8 +7,8 @@ from pydantic import BaseModel, Field
 class EnquiryStatus(str, Enum):
     NEW = "new"
     CONTACTED = "contacted"
-    IN_PROGRESS = "in_progress"
-    RESOLVED = "resolved"
+    QUALIFIED = "qualified"
+    CONVERTED = "converted"
     CLOSED = "closed"
 
 
