@@ -17,9 +17,9 @@ class CustomerCreate(BaseModel):
     country_code: Optional[str] = Field(None, min_length=2, max_length=5, examples=["+91", "+1"])
     phone_number: str = Field(..., min_length=7, max_length=15, examples=["9876543210"])
     email: Optional[str] = None
-    address: Optional[str] = Field(None, min_length=5, max_length=300)
-    city: Optional[str] = Field(None, min_length=2, max_length=100)
-    pincode: Optional[str] = Field(None, min_length=4, max_length=10, examples=["452001"])
+    address: Optional[str] = Field(None)
+    city: Optional[str] = Field(None)
+    pincode: Optional[str] = Field(None, examples=["452001"])
     orders: List[str] = Field(default=[])
     status: CustomerStatus = Field(default=CustomerStatus.NEW)
 
