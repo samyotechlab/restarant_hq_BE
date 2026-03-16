@@ -14,12 +14,12 @@ class CustomerStatus(str, Enum):
 class CustomerCreate(BaseModel):
     """Payload the client sends when registering a new customer."""
     name: str = Field(..., min_length=2, max_length=100)
-    country_code: Optional[str] = Field(None, min_length=2, max_length=5, examples=["+91", "+1"])
+    country_code: Optional[str] = Field(None)
     phone_number: str = Field(..., min_length=7, max_length=15, examples=["9876543210"])
     email: Optional[str] = None
     address: Optional[str] = Field(None)
     city: Optional[str] = Field(None)
-    pincode: Optional[str] = Field(None, examples=["452001"])
+    pincode: Optional[str] = Field(None)
     orders: List[str] = Field(default=[])
     status: CustomerStatus = Field(default=CustomerStatus.NEW)
 
@@ -27,12 +27,12 @@ class CustomerCreate(BaseModel):
 class CustomerUpdate(BaseModel):
     """All fields are optional — supports partial (PATCH-style) updates."""
     name: Optional[str] = Field(None, min_length=2, max_length=100)
-    country_code: Optional[str] = Field(None, min_length=2, max_length=5)
+    country_code: Optional[str] = Field(None)
     phone_number: Optional[str] = Field(None, min_length=7, max_length=15)
     email: Optional[str] = None
-    address: Optional[str] = Field(None, min_length=5, max_length=300)
-    city: Optional[str] = Field(None, min_length=2, max_length=100)
-    pincode: Optional[str] = Field(None, min_length=4, max_length=10)
+    address: Optional[str] = Field(None)
+    city: Optional[str] = Field(None)
+    pincode: Optional[str] = Field(None)
     status: Optional[CustomerStatus] = None
 
 
@@ -41,12 +41,12 @@ class CustomerResponse(BaseModel):
     id: str
     customer_id: str
     name: str
-    country_code: str
+    country_code: Optional[str] = None
     phone_number: str
     email: Optional[str] = None
-    address: str
-    city: str
-    pincode: str
+    address: Optional[str] = None
+    city: Optional[str] = None
+    pincode: Optional[str] = None
     orders: List[str] = []
     status: CustomerStatus
     created_at: datetime
