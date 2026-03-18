@@ -5,7 +5,7 @@ from auth.dependencies import get_current_user
 from db.database import get_db
 from models.customers_model import CustomerCreate, CustomerResponse, CustomerUpdate, BulkUploadResponse, PaginatedCustomerResponse
 from models.base_model import StandardResponse
-from controller.customers_controller import CustomerController
+from controller.customers_controller import CustomerController, _to_response
 
 router = APIRouter(prefix="/customers", tags=["Customers"])
 
@@ -60,7 +60,7 @@ async def get_all_customers_paginated(
 )
 async def get_all_customers(db=Depends(get_db)):
     """Return all the customers"""
-    result = await CustomerController.get_all_customers(db)
+    result = await CustomerController.fetch_all_customers(db)
     return StandardResponse(
         status_code=status.HTTP_200_OK,
         message="Customers Fetched Successfully",

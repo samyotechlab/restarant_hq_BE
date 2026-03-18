@@ -35,6 +35,10 @@ class CustomerUpdate(BaseModel):
     pincode: Optional[str] = Field(None)
     status: Optional[CustomerStatus] = None
 
+class PopulatedOrder(BaseModel):
+    """Minimal order details embedded inside a customer response."""
+    order_id: str
+    grand_total: Optional[float] = None
 
 class CustomerResponse(BaseModel):
     """Shape of the customer object returned to the client."""
@@ -47,7 +51,7 @@ class CustomerResponse(BaseModel):
     address: Optional[str] = None
     city: Optional[str] = None
     pincode: Optional[str] = None
-    orders: List[str] = []
+    orders: List[PopulatedOrder] = []
     status: CustomerStatus
     created_at: datetime
     updated_at: datetime
