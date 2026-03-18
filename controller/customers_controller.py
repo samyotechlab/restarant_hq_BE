@@ -1,18 +1,29 @@
 import math
 from datetime import datetime, timezone
-from typing import List
 from uuid import uuid4
 from bson import ObjectId
 from fastapi import HTTPException, status
 
-from models.customers_model import CustomerCreate, CustomerResponse, CustomerUpdate, CustomerStatus, BulkUploadResult, BulkUploadResponse, PaginatedCustomerResponse
+from models.customers_model import CustomerCreate, CustomerResponse, CustomerUpdate, CustomerStatus, BulkUploadResult, BulkUploadResponse, PaginatedCustomerResponse, PopulatedOrder
 
 
-def _to_response(doc: dict) -> CustomerResponse:
-    """Convert a raw MongoDB document into a CustomerResponse."""
-    email = doc.get("email")
-    if email is None:
-        doc["email"] = None
+async def _to_response(doc: dict, db) -> CustomerResponse:
+    """
+    Convert a raw MongoDB document into a CustomerResponse.
+    Populates orders array — fetches each order and returns order_id + grand_total.
+    """
+    populated_orders = []
+    for order_id_str in doc.get("orders", []):
+        try:
+            order_doc = await db["orders"].find_one({"_id": ObjectId(order_id_str)})
+            if order_doc:
+                populated_orders.append(PopulatedOrder(
+                    order_id=str(order_doc["_id"]),
+                    grand_total=order_doc.get("grand_total"),
+                ))
+        except Exception:
+            continue
+
     return CustomerResponse(
         id=str(doc["_id"]),
         customer_id=doc["customer_id"],
@@ -23,7 +34,7 @@ def _to_response(doc: dict) -> CustomerResponse:
         address=doc["address"],
         city=doc["city"],
         pincode=doc["pincode"],
-        orders=doc.get("orders", []),
+        orders=populated_orders,
         status=doc["status"],
         created_at=doc["created_at"],
         updated_at=doc["updated_at"],
@@ -44,24 +55,23 @@ class CustomerController:
     @staticmethod
     async def create_customer(data: CustomerCreate, db) -> CustomerResponse:
         """Register a brand-new customer. Rejects duplicate emails."""
-        if data.email:
-            existing = await db["customers"].find_one({"email": data.email})
-            if existing:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="A customer with this email already exists.",
-                )
+        existing = await db["customers"].find_one({"email": data.email})
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A customer with this email already exists.",
+            )
 
         now = datetime.now(timezone.utc)
         customer_doc = {
             "customer_id": f"CUS-{uuid4().hex[:8].upper()}",  
             "name": data.name,
-            "country_code": data.country_code if data.country_code else None,
+            "country_code": data.country_code,
             "phone_number": data.phone_number,
-            "email": data.email if data.email else None,
-            "address": data.address if data.address else None,
-            "city": data.city if data.city else None,
-            "pincode": data.pincode if data.pincode else None,
+            "email": data.email,
+            "address": data.address,
+            "city": data.city,
+            "pincode": data.pincode,
             "orders": [],
             "status": CustomerStatus.NEW.value,
             "created_at": now,
@@ -70,7 +80,7 @@ class CustomerController:
 
         result = await db["customers"].insert_one(customer_doc)
         customer_doc["_id"] = result.inserted_id
-        return _to_response(customer_doc)
+        return await _to_response(customer_doc, db)
 
     @staticmethod
     async def get_customer(customer_id: str, db) -> CustomerResponse:
@@ -83,25 +93,15 @@ class CustomerController:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Customer not found.",
             )
-        return _to_response(customer)
-    
-    @staticmethod
-    async def get_customer_by_phone(customer_phone: str, db) -> CustomerResponse:
-        customer = await db["customers"].find_one({"phone_number": customer_phone});
-        if not customer:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Customer not found.",
-            )
-        return _to_response(customer)
+        return await _to_response(customer, db)
 
     @staticmethod
-    async def get_all_customers_paginated(db, page: int = 1, limit: int = 10) -> PaginatedCustomerResponse:
+    async def get_all_customers(db, page: int = 1, limit: int = 10) -> PaginatedCustomerResponse:
         """Return a paginated list of customers."""
         skip = (page - 1) * limit
 
         total_results = await db["customers"].count_documents({})
-        customers = await db["customers"].find().skip(skip).limit(limit).sort("created_at", -1).to_list(length=None)
+        customers = await db["customers"].find().skip(skip).limit(limit).to_list(length=None)
         total_pages = math.ceil(total_results / limit)
 
         return PaginatedCustomerResponse(
@@ -109,13 +109,8 @@ class CustomerController:
             page=page,
             limit=limit,
             total_pages=total_pages,
-            data=[_to_response(c) for c in customers],
+            data=[await _to_response(c, db) for c in customers],
         )
-    
-    @staticmethod
-    async def get_all_customers(db) -> List[CustomerResponse]:
-        customers = await db['customers'].find().sort("created_at", -1).to_list(length=None)
-        return [_to_response(c) for c in customers]
 
     @staticmethod
     async def update_customer(customer_id: str, data: CustomerUpdate, db) -> CustomerResponse:
@@ -143,7 +138,7 @@ class CustomerController:
         )
 
         updated = await db["customers"].find_one({"_id": ObjectId(customer_id)})
-        return _to_response(updated)
+        return await _to_response(updated, db)
 
     @staticmethod
     async def delete_customer(customer_id: str, db) -> dict:
@@ -179,7 +174,7 @@ class CustomerController:
         )
 
         updated = await db["customers"].find_one({"_id": ObjectId(customer_id)})
-        return _to_response(updated)
+        return await _to_response(updated, db)
 
     @staticmethod
     async def bulk_create_customers(data: list[CustomerCreate], db) -> BulkUploadResponse:
@@ -208,7 +203,7 @@ class CustomerController:
                     "city": customer.city,
                     "pincode": customer.pincode,
                     "orders": [],
-                    "status": customer.status,
+                    "status": customer.status.value,    
                     "created_at": now,
                     "updated_at": now,
                 }
@@ -219,7 +214,7 @@ class CustomerController:
                 results.append(BulkUploadResult(
                     index=index,
                     success=True,
-                    customer=_to_response(customer_doc),
+                    customer=await _to_response(customer_doc, db),
                 ))
                 inserted += 1
 
@@ -276,7 +271,7 @@ class CustomerController:
             except Exception as e:
                 customers.append(None)
 
-        # separate valid and invalid rows before inserting
+        
         results = []
         valid_customers = []
         for index, customer in enumerate(customers):
@@ -289,6 +284,7 @@ class CustomerController:
             else:
                 valid_customers.append((index, customer))
 
+        
         inserted = 0
         failed = len(results)  
 
@@ -320,7 +316,7 @@ class CustomerController:
                 results.append(BulkUploadResult(
                     index=index,
                     success=True,
-                    customer=_to_response(customer_doc),
+                    customer=await _to_response(customer_doc, db),
                 ))
                 inserted += 1
 
@@ -332,7 +328,7 @@ class CustomerController:
                 ))
                 failed += 1
 
-        # sort results by original row index so response is in order
+        
         results.sort(key=lambda r: r.index)
 
         return BulkUploadResponse(
