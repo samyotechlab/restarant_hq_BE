@@ -14,24 +14,24 @@ class EnquiryStatus(str, Enum):
 
 class EnquiryCreate(BaseModel):
     """All fields optional — frontend handles required validation."""
-    name: Optional[str] = Field(None, min_length=2, max_length=100)
-    country_code: Optional[str] = Field(None, min_length=2, max_length=5)
-    phone_number: Optional[str] = Field(None, min_length=7, max_length=15)
-    service: Optional[str] = Field(None, min_length=2, max_length=100)
-    source: Optional[str] = Field(None, min_length=2, max_length=100)
+    name: Optional[str] = Field(None)
+    country_code: Optional[str] = Field(None)
+    phone_number: Optional[str] = Field(None)
+    service: Optional[str] = Field(None)
+    source: Optional[str] = Field(None)
     status: Optional[EnquiryStatus] = Field(default=EnquiryStatus.NEW)
-    assigned_to: Optional[str] = Field(None, min_length=2, max_length=100)
+    assigned_to: Optional[str] = Field(None)
 
 
 class EnquiryUpdate(BaseModel):
     """All fields optional — supports partial updates."""
-    name: Optional[str] = Field(None, min_length=2, max_length=100)
-    country_code: Optional[str] = Field(None, min_length=2, max_length=5)
-    phone_number: Optional[str] = Field(None, min_length=7, max_length=15)
-    service: Optional[str] = Field(None, min_length=2, max_length=100)
-    source: Optional[str] = Field(None, min_length=2, max_length=100)
+    name: Optional[str] = Field(None)
+    country_code: Optional[str] = Field(None)
+    phone_number: Optional[str] = Field(None)
+    service: Optional[str] = Field(None)
+    source: Optional[str] = Field(None)
     status: Optional[EnquiryStatus] = None
-    assigned_to: Optional[str] = Field(None, min_length=2, max_length=100)
+    assigned_to: Optional[str] = Field(None)
 
 
 class EnquiryResponse(BaseModel):
