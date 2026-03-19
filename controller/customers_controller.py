@@ -4,7 +4,16 @@ from uuid import uuid4
 from bson import ObjectId
 from fastapi import HTTPException, status
 
-from models.customers_model import CustomerCreate, CustomerResponse, CustomerUpdate, CustomerStatus, BulkUploadResult, BulkUploadResponse, PaginatedCustomerResponse, PopulatedOrder
+from models.customers_model import (
+    CustomerCreate,
+    CustomerResponse,
+    CustomerUpdate,
+    CustomerStatus,
+    BulkUploadResult,
+    BulkUploadResponse,
+    PaginatedCustomerResponse,
+    PopulatedOrder,
+)
 
 
 async def _to_response(doc: dict, db) -> CustomerResponse:
@@ -30,7 +39,7 @@ async def _to_response(doc: dict, db) -> CustomerResponse:
         name=doc["name"],
         country_code=doc["country_code"],
         phone_number=doc["phone_number"],
-        email=doc["email"],
+        email=doc.get("email"),
         address=doc["address"],
         city=doc["city"],
         pincode=doc["pincode"],
@@ -64,7 +73,7 @@ class CustomerController:
 
         now = datetime.now(timezone.utc)
         customer_doc = {
-            "customer_id": f"CUS-{uuid4().hex[:8].upper()}",  
+            "customer_id": f"CUS-{uuid4().hex[:8].upper()}",
             "name": data.name,
             "country_code": data.country_code,
             "phone_number": data.phone_number,
@@ -96,6 +105,17 @@ class CustomerController:
         return await _to_response(customer, db)
 
     @staticmethod
+    async def get_customer_by_phone(customer_phone: str, db) -> CustomerResponse:
+        """Fetch one customer by phone number."""
+        customer = await db["customers"].find_one({"phone_number": customer_phone})
+        if not customer:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Customer not found.",
+            )
+        return await _to_response(customer, db)
+
+    @staticmethod
     async def get_all_customers(db, page: int = 1, limit: int = 10) -> PaginatedCustomerResponse:
         """Return a paginated list of customers."""
         skip = (page - 1) * limit
@@ -111,6 +131,13 @@ class CustomerController:
             total_pages=total_pages,
             data=[await _to_response(c, db) for c in customers],
         )
+
+    @staticmethod
+    async def get_all_customers(db) -> List[CustomerResponse]:
+        """Return all customers sorted by created_at."""
+        customers = await db["customers"].find().sort("created_at", -1).to_list(length=None)
+        return [await _to_response(c, db) for c in customers]
+
 
     @staticmethod
     async def update_customer(customer_id: str, data: CustomerUpdate, db) -> CustomerResponse:
@@ -203,7 +230,7 @@ class CustomerController:
                     "city": customer.city,
                     "pincode": customer.pincode,
                     "orders": [],
-                    "status": customer.status.value,    
+                    "status": customer.status.value if hasattr(customer.status, "value") else customer.status,
                     "created_at": now,
                     "updated_at": now,
                 }
@@ -243,7 +270,6 @@ class CustomerController:
         import csv
         import io
 
-        # decode bytes → string → CSV reader
         content = file_bytes.decode("utf-8")
         reader = csv.DictReader(io.StringIO(content))
 
@@ -268,10 +294,9 @@ class CustomerController:
                     pincode=row["pincode"].strip(),
                 )
                 customers.append(customer)
-            except Exception as e:
+            except Exception:
                 customers.append(None)
 
-        
         results = []
         valid_customers = []
         for index, customer in enumerate(customers):
@@ -286,7 +311,7 @@ class CustomerController:
 
         
         inserted = 0
-        failed = len(results)  
+        failed = len(results)
 
         for index, customer in valid_customers:
             try:
@@ -328,7 +353,6 @@ class CustomerController:
                 ))
                 failed += 1
 
-        
         results.sort(key=lambda r: r.index)
 
         return BulkUploadResponse(

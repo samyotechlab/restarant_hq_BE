@@ -35,6 +35,10 @@ class CustomerUpdate(BaseModel):
     pincode: Optional[str] = Field(None)
     status: Optional[CustomerStatus] = None
 
+class PopulatedOrder(BaseModel):
+    """Minimal order details embedded inside a customer response."""
+    order_id: str
+    grand_total: Optional[float] = None
 
 class PopulatedOrder(BaseModel):
     """Minimal order details embedded inside a customer response."""

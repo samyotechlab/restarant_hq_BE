@@ -5,7 +5,7 @@ from auth.dependencies import get_current_user
 from db.database import get_db
 from models.customers_model import CustomerCreate, CustomerResponse, CustomerUpdate, BulkUploadResponse, PaginatedCustomerResponse
 from models.base_model import StandardResponse
-from controller.customers_controller import CustomerController
+from controller.customers_controller import CustomerController, _to_response
 
 router = APIRouter(prefix="/customers", tags=["Customers"])
 
