@@ -15,7 +15,7 @@ class OrderStatus(str, Enum):
 class PaymentMethod(str, Enum):
     CASH = "Cash"
     CARD = "Card"
-    UPI = "UPI"
+    ONLINE = "Online"
     PENDING = "Pending"
 
 
