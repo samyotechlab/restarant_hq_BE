@@ -17,7 +17,6 @@ router = APIRouter(prefix="/orders", tags=["Orders"])
 async def create_order(
     data: OrderCreate,
     db=Depends(get_db),
-    # no auth on create
 ):
     """Create a new order. No authentication required."""
     result = await OrderController.create_order(data, db)
@@ -29,13 +28,12 @@ async def create_order(
 
 
 @router.get(
-    "/",
+    "/fetch_all",
     response_model=StandardResponse[list[OrderResponse]],
-    summary="Get all orders (unpaginated)",
+    summary="Get all orders",
 )
 async def get_all_orders(
     db=Depends(get_db),
-    # no auth on get all
 ):
     """Return all orders without pagination. No authentication required."""
     result = await OrderController.get_all_orders(db)
@@ -47,7 +45,7 @@ async def get_all_orders(
 
 
 @router.get(
-    "/paginated",
+    "/",
     response_model=StandardResponse[PaginatedOrderResponse],
     summary="Get all orders with pagination",
 )
@@ -55,7 +53,7 @@ async def get_all_orders_paginated(
     page: int = Query(default=1, ge=1, description="Page number"),
     limit: int = Query(default=10, ge=1, le=100, description="Items per page"),
     db=Depends(get_db),
-    _: dict = Depends(get_current_user),                # auth required
+    _: dict = Depends(get_current_user),
 ):
     """Return a paginated list of orders."""
     result = await OrderController.get_all_orders_paginated(db, page, limit)
@@ -74,7 +72,7 @@ async def get_all_orders_paginated(
 async def get_order(
     order_id: str,
     db=Depends(get_db),
-    _: dict = Depends(get_current_user),                # auth required
+    _: dict = Depends(get_current_user),
 ):
     """Fetch one order by its ID — customer and items are populated."""
     result = await OrderController.get_order(order_id, db)
@@ -94,7 +92,7 @@ async def update_order(
     order_id: str,
     data: OrderUpdate,
     db=Depends(get_db),
-    _: dict = Depends(get_current_user),                # auth required
+    _: dict = Depends(get_current_user),
 ):
     """Update one or more fields of an order."""
     result = await OrderController.update_order(order_id, data, db)
@@ -113,7 +111,7 @@ async def update_order(
 async def delete_order(
     order_id: str,
     db=Depends(get_db),
-    _: dict = Depends(get_current_user),                # auth required
+    _: dict = Depends(get_current_user),
 ):
     """Hard-delete an order."""
     result = await OrderController.delete_order(order_id, db)

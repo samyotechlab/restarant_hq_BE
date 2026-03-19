@@ -1,5 +1,6 @@
 import math
 from datetime import datetime, timezone
+from typing import List
 from uuid import uuid4
 from bson import ObjectId
 from fastapi import HTTPException, status
@@ -116,7 +117,7 @@ class CustomerController:
         return await _to_response(customer, db)
 
     @staticmethod
-    async def get_all_customers(db, page: int = 1, limit: int = 10) -> PaginatedCustomerResponse:
+    async def get_all_customers_paginated(db, page: int = 1, limit: int = 10) -> PaginatedCustomerResponse:
         """Return a paginated list of customers."""
         skip = (page - 1) * limit
 

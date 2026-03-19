@@ -23,7 +23,7 @@ router = APIRouter(prefix="/campaigns", tags=["Campaigns"])
 async def create_campaign(
     data: CampaignCreate,
     db=Depends(get_db),
-    _: dict = Depends(get_current_user),                
+    # _: dict = Depends(get_current_user),               
 ):
     """Create a new marketing campaign."""
     result = await CampaignController.create_campaign(data, db)
@@ -41,7 +41,7 @@ async def create_campaign(
 )
 async def fetch_all_campaigns(
     db=Depends(get_db),
-    _: dict = Depends(get_current_user),                
+    # _: dict = Depends(get_current_user),               
 ):
     """Return all campaigns without pagination."""
     result = await CampaignController.get_all_campaigns(db)

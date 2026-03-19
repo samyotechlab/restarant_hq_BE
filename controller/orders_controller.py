@@ -42,7 +42,7 @@ async def _populate_order(doc: dict, db) -> OrderResponse:
         customer_doc = await db["customers"].find_one({"_id": ObjectId(doc["customer"])})
         if customer_doc:
             populated_customer = PopulatedCustomer(
-                customer_id=customer_doc.get("customer_id"),
+                customer_id=str(customer_doc.get("_id")),
                 name=customer_doc.get("name"),
                 phone_number=customer_doc.get("phone_number"),
                 email=customer_doc.get("email"),
@@ -162,7 +162,7 @@ class OrderController:
     @staticmethod
     async def get_all_orders(db) -> list[OrderResponse]:
         """Return all orders — unpaginated, unauthenticated."""
-        orders = await db["orders"].find().to_list(length=None)
+        orders = await db["orders"].find().sort('created_at', -1).to_list(length=None)
         return [await _populate_order(o, db) for o in orders]
 
     @staticmethod
@@ -171,7 +171,7 @@ class OrderController:
         skip = (page - 1) * limit
 
         total_results = await db["orders"].count_documents({})
-        orders = await db["orders"].find().skip(skip).limit(limit).to_list(length=None)
+        orders = await db["orders"].find().skip(skip).limit(limit).sort('created_at', -1).to_list(length=None)
         total_pages = math.ceil(total_results / limit)
 
         return PaginatedOrderResponse(

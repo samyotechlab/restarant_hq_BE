@@ -1,4 +1,7 @@
+import asyncio
 import math
+import httpx
+import os
 from datetime import datetime, timezone
 from typing import List
 from uuid import uuid4
@@ -13,6 +16,11 @@ from models.menu_model import (
     PaginatedMenuResponse,
     BulkMenuUploadResult,
     BulkMenuUploadResponse,
+)
+
+N8N_WEBHOOK_URL = os.getenv(
+    "N8N_CATALOG_SYNC_WEBHOOK",
+    "https://poojavirk.app.n8n.cloud/webhook/menu-catalog-sync"
 )
 
 
@@ -42,11 +50,63 @@ def _validate_object_id(item_id: str) -> None:
         )
 
 
+def _build_sync_payload(item_doc: dict, sync_type: str = "single") -> dict:
+    """Build the n8n webhook payload from a menu item document."""
+    return {
+        "sync_type": sync_type,
+        "item": {
+            "id": str(item_doc["_id"]),
+            "item_name": item_doc["item_name"],
+            "price": item_doc["price"],
+            "category": item_doc["category"],
+            "offer": item_doc.get("offer"),
+            "image": item_doc.get("image"),
+            "available": item_doc.get("available", True),
+            "type": item_doc.get("type", ""),
+        },
+    }
+
+
+async def _do_sync(payload: dict) -> None:
+    """Internal actual HTTP call to n8n — runs in background."""
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(N8N_WEBHOOK_URL, json=payload)
+            print(f"📡 n8n response: {response.status_code} {response.text[:200]}")
+    except Exception as e:
+        print(f"❌ Catalog sync error: {type(e).__name__}: {str(e)}")
+
+
+async def _trigger_catalog_sync(payload: dict) -> None:
+    """Fire-and-forget — never blocks the main API request."""
+    asyncio.create_task(_do_sync(payload))
+    print(f"🚀 Catalog sync triggered for: {payload['item'].get('item_name', 'unknown')}")
+
+
+async def _trigger_catalog_delete(item_id: str) -> None:
+    """Fire-and-forget delete — never blocks the main API request."""
+    payload = {
+        "sync_type": "delete",
+        "item": {"item_id": item_id}
+    }
+    asyncio.create_task(_do_sync(payload)) 
+    print(f"🚀 Catalog delete triggered for: {item_id}")
+
+
+async def _do_bulk_sync(payload: dict) -> None:
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(N8N_WEBHOOK_URL, json=payload)
+            print(f"📡 Bulk sync response: {response.status_code} {response.text[:200]}")
+    except Exception as e:
+        print(f"❌ Bulk catalog sync error: {type(e).__name__}: {str(e)}")
+
+
 class MenuController:
 
     @staticmethod
     async def create_item(data: MenuItemCreate, db) -> MenuItemResponse:
-        """Create a new menu item."""
+        """Create a new menu item and sync to Meta Catalog."""
         now = datetime.now(timezone.utc)
         item_doc = {
             "item_no": f"ITEM-{uuid4().hex[:8].upper()}",
@@ -63,6 +123,9 @@ class MenuController:
 
         result = await db["menu_items"].insert_one(item_doc)
         item_doc["_id"] = result.inserted_id
+
+        await _trigger_catalog_sync(_build_sync_payload(item_doc))
+
         return _to_response(item_doc)
 
     @staticmethod
@@ -79,11 +142,20 @@ class MenuController:
         return _to_response(item)
 
     @staticmethod
-    async def get_all_items_paginated(db, page: int = 1, limit: int = 10) -> PaginatedMenuResponse:
+    async def get_all_items_paginated(
+        db, page: int = 1, limit: int = 10
+    ) -> PaginatedMenuResponse:
         """Return a paginated list of menu items."""
         skip = (page - 1) * limit
         total_results = await db["menu_items"].count_documents({})
-        items = await db["menu_items"].find().skip(skip).limit(limit).sort("created_at", -1).to_list(length=None)
+        items = (
+            await db["menu_items"]
+            .find()
+            .skip(skip)
+            .limit(limit)
+            .sort("created_at", -1)
+            .to_list(length=None)
+        )
         total_pages = math.ceil(total_results / limit)
 
         return PaginatedMenuResponse(
@@ -94,15 +166,24 @@ class MenuController:
             data=[_to_response(i) for i in items],
         )
 
+
     @staticmethod
     async def get_all_items(db) -> List[MenuItemResponse]:
-        items = await db['menu_items'].find().sort('created_at', -1).to_list(length=None)
+        """Fetch all menu items without pagination."""
+        items = (
+            await db["menu_items"]
+            .find()
+            .sort("created_at", -1)
+            .to_list(length=None)
+        )
         return [_to_response(i) for i in items]
 
 
     @staticmethod
-    async def update_item(item_id: str, data: MenuItemUpdate, db) -> MenuItemResponse:
-        """Partial update — only fields provided are changed."""
+    async def update_item(
+        item_id: str, data: MenuItemUpdate, db
+    ) -> MenuItemResponse:
+        """Partial update and sync changes to Meta Catalog."""
         _validate_object_id(item_id)
 
         existing = await db["menu_items"].find_one({"_id": ObjectId(item_id)})
@@ -129,11 +210,15 @@ class MenuController:
         )
 
         updated = await db["menu_items"].find_one({"_id": ObjectId(item_id)})
+
+        await _trigger_catalog_sync(_build_sync_payload(updated))
+
         return _to_response(updated)
+
 
     @staticmethod
     async def delete_item(item_id: str, db) -> dict:
-        """Hard-delete a menu item."""
+        """Hard-delete a menu item and remove from Meta Catalog."""
         _validate_object_id(item_id)
 
         result = await db["menu_items"].delete_one({"_id": ObjectId(item_id)})
@@ -142,21 +227,29 @@ class MenuController:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Menu item not found.",
             )
+
+        # ── Remove from Meta Catalog ──
+        await _trigger_catalog_delete(item_id)
+
         return {"deleted_id": item_id}
 
+
     @staticmethod
-    async def bulk_create_items(data: list[dict], db) -> BulkMenuUploadResponse:
+    async def bulk_create_items(
+        data: list[dict], db
+    ) -> BulkMenuUploadResponse:
         """
         Insert multiple menu items in one go.
         Validates each item individually — skips failed entries.
+        Syncs all successfully inserted items to Meta Catalog.
         """
         results = []
         inserted = 0
         failed = 0
+        inserted_docs = []
 
         for index, raw in enumerate(data):
             try:
-                # validate each row individually so bad rows don't kill the whole batch
                 item = MenuItemCreate(**raw)
 
                 now = datetime.now(timezone.utc)
@@ -175,6 +268,7 @@ class MenuController:
 
                 result = await db["menu_items"].insert_one(item_doc)
                 item_doc["_id"] = result.inserted_id
+                inserted_docs.append(item_doc)
 
                 results.append(BulkMenuUploadResult(
                     index=index,
@@ -190,6 +284,26 @@ class MenuController:
                     error=str(e),
                 ))
                 failed += 1
+
+        if inserted_docs:
+            bulk_payload = {
+                "sync_type": "full",
+                "items": [         
+                    {
+                        "item_id": str(doc["_id"]),
+                        "item_name": doc["item_name"],
+                        "price": doc["price"],
+                        "category": doc["category"],
+                        "offer": doc.get("offer"),
+                        "image": doc.get("image"),
+                        "available": doc.get("available", True),
+                        "type": doc.get("type", ""),
+                    }
+                    for doc in inserted_docs
+                ]
+            }
+            asyncio.create_task(_do_bulk_sync(bulk_payload))
+            print(f"🚀 Bulk catalog sync triggered: {inserted} items")
 
         return BulkMenuUploadResponse(
             total=len(data),
