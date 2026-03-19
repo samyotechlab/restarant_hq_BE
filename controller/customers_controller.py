@@ -1,6 +1,5 @@
 import math
 from datetime import datetime, timezone
-from typing import List
 from uuid import uuid4
 from bson import ObjectId
 from fastapi import HTTPException, status
@@ -65,24 +64,23 @@ class CustomerController:
     @staticmethod
     async def create_customer(data: CustomerCreate, db) -> CustomerResponse:
         """Register a brand-new customer. Rejects duplicate emails."""
-        if data.email:
-            existing = await db["customers"].find_one({"email": data.email})
-            if existing:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="A customer with this email already exists.",
-                )
+        existing = await db["customers"].find_one({"email": data.email})
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A customer with this email already exists.",
+            )
 
         now = datetime.now(timezone.utc)
         customer_doc = {
             "customer_id": f"CUS-{uuid4().hex[:8].upper()}",
             "name": data.name,
-            "country_code": data.country_code if data.country_code else None,
+            "country_code": data.country_code,
             "phone_number": data.phone_number,
-            "email": data.email if data.email else None,
-            "address": data.address if data.address else None,
-            "city": data.city if data.city else None,
-            "pincode": data.pincode if data.pincode else None,
+            "email": data.email,
+            "address": data.address,
+            "city": data.city,
+            "pincode": data.pincode,
             "orders": [],
             "status": CustomerStatus.NEW.value,
             "created_at": now,
@@ -118,12 +116,12 @@ class CustomerController:
         return await _to_response(customer, db)
 
     @staticmethod
-    async def get_all_customers_paginated(db, page: int = 1, limit: int = 10) -> PaginatedCustomerResponse:
+    async def get_all_customers(db, page: int = 1, limit: int = 10) -> PaginatedCustomerResponse:
         """Return a paginated list of customers."""
         skip = (page - 1) * limit
 
         total_results = await db["customers"].count_documents({})
-        customers = await db["customers"].find().skip(skip).limit(limit).sort("created_at", -1).to_list(length=None)
+        customers = await db["customers"].find().skip(skip).limit(limit).to_list(length=None)
         total_pages = math.ceil(total_results / limit)
 
         return PaginatedCustomerResponse(
@@ -140,11 +138,6 @@ class CustomerController:
         customers = await db["customers"].find().sort("created_at", -1).to_list(length=None)
         return [await _to_response(c, db) for c in customers]
 
-    @staticmethod
-    async def fetch_all_customers(db) -> List[CustomerResponse]:
-        """Return all customers without pagination."""
-        customers = await db["customers"].find().sort("created_at", -1).to_list(length=None)
-        return [await _to_response(c, db) for c in customers]
 
     @staticmethod
     async def update_customer(customer_id: str, data: CustomerUpdate, db) -> CustomerResponse:
@@ -316,6 +309,7 @@ class CustomerController:
             else:
                 valid_customers.append((index, customer))
 
+        
         inserted = 0
         failed = len(results)
 

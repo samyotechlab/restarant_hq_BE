@@ -45,7 +45,7 @@ async def get_all_customers_paginated(
     _: dict = Depends(get_current_user),                                        
 ):
     """Return a paginated list of customers. Defaults to page 1 with 10 items."""
-    result = await CustomerController.get_all_customers_paginated(db, page, limit)
+    result = await CustomerController.get_all_customers(db, page, limit)
     return StandardResponse(
         status_code=status.HTTP_200_OK,
         message="Customers Fetched Successfully",
@@ -60,11 +60,11 @@ async def get_all_customers_paginated(
 )
 async def get_all_customers(db=Depends(get_db)):
     """Return all the customers"""
-    result = await CustomerController.fetch_all_customers(db)
+    result = await CustomerController.get_all_customers(db, page=1, limit=1000)
     return StandardResponse(
         status_code=status.HTTP_200_OK,
         message="Customers Fetched Successfully",
-        result_data=result
+        result_data=result,
     )
 
 

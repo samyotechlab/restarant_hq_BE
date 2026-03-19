@@ -40,6 +40,12 @@ class PopulatedOrder(BaseModel):
     order_id: str
     grand_total: Optional[float] = None
 
+class PopulatedOrder(BaseModel):
+    """Minimal order details embedded inside a customer response."""
+    order_id: str
+    grand_total: Optional[float] = None
+
+
 class CustomerResponse(BaseModel):
     """Shape of the customer object returned to the client."""
     id: str
