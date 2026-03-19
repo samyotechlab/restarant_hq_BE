@@ -36,7 +36,7 @@ async def _populate_order(doc: dict, db) -> OrderResponse:
     3. Embed the fetched data into the response
     """
 
-    # ── populate customer ──
+    
     populated_customer = None
     if doc.get("customer"):
         customer_doc = await db["customers"].find_one({"_id": ObjectId(doc["customer"])})
@@ -48,7 +48,7 @@ async def _populate_order(doc: dict, db) -> OrderResponse:
                 email=customer_doc.get("email"),
             )
 
-    # ── populate menu items ──
+    
     populated_items = []
     for item in doc.get("items", []):
         menu_doc = await db["menu_items"].find_one({"_id": ObjectId(item["menu_item"])})
@@ -87,7 +87,7 @@ class OrderController:
     async def create_order(data: OrderCreate, db) -> OrderResponse:
         """Create a new order."""
 
-        # validate customer ObjectId if provided
+        
         if data.customer:
             _validate_object_id(data.customer, "customer ID")
             customer_exists = await db["customers"].find_one({"_id": ObjectId(data.customer)})
@@ -97,7 +97,7 @@ class OrderController:
                     detail="Customer not found.",
                 )
 
-        # validate each menu_item ObjectId if items provided
+
         items_to_store = []
         for item in (data.items or []):
             _validate_object_id(item.menu_item, "menu item ID")
@@ -108,7 +108,7 @@ class OrderController:
                     detail=f"Menu item '{item.menu_item}' not found.",
                 )
             items_to_store.append({
-                "menu_item": item.menu_item,    # store as string ObjectId
+                "menu_item": item.menu_item,    
                 "price": item.price,
                 "quantity": item.quantity,
                 "sub_total": item.sub_total,
@@ -116,7 +116,7 @@ class OrderController:
 
         now = datetime.now(timezone.utc)
         order_doc = {
-            "order_id": f"ORD-{uuid4().hex[:8].upper()}",      # e.g. ORD-3F9A1B2C
+            "order_id": f"ORD-{uuid4().hex[:8].upper()}",      
             "customer": data.customer,
             "items": items_to_store,
             "status": data.status.value if data.status else OrderStatus.PENDING.value,
@@ -133,6 +133,17 @@ class OrderController:
 
         result = await db["orders"].insert_one(order_doc)
         order_doc["_id"] = result.inserted_id
+
+       
+        if data.customer:
+            await db["customers"].update_one(
+                {"_id": ObjectId(data.customer)},
+                {
+                    "$addToSet": {"orders": str(result.inserted_id)},
+                    "$set": {"updated_at": datetime.now(timezone.utc)},
+                },
+            )
+
         return await _populate_order(order_doc, db)
 
     @staticmethod
@@ -190,7 +201,7 @@ class OrderController:
                 detail="No fields provided to update.",
             )
 
-        # convert items list to storable format if provided
+        
         if "items" in update_fields:
             items_to_store = []
             for item in update_fields["items"]:
