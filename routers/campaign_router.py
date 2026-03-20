@@ -19,6 +19,7 @@ router = APIRouter(prefix="/campaigns", tags=["Campaigns"])
     response_model=StandardResponse[CampaignResponse],
     status_code=status.HTTP_201_CREATED,
     summary="Create a new marketing campaign",
+    include_in_schema=False
 )
 async def create_campaign(
     data: CampaignCreate,
@@ -38,6 +39,7 @@ async def create_campaign(
     "/fetch_all",
     response_model=StandardResponse[List[CampaignResponse]],
     summary="Get all campaigns unpaginated",
+    include_in_schema=False
 )
 async def fetch_all_campaigns(
     db=Depends(get_db),

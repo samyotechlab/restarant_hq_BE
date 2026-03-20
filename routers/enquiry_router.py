@@ -15,6 +15,7 @@ router = APIRouter(prefix="/enquiries", tags=["Enquiries"])
     response_model=StandardResponse[EnquiryResponse],
     status_code=status.HTTP_201_CREATED,
     summary="Create a new enquiry",
+    include_in_schema=False
 )
 async def create_enquiry(
     data: EnquiryCreate,
@@ -53,6 +54,7 @@ async def get_all_enquiries_paginated(
     "/fetch_all",
     response_model=StandardResponse[List[EnquiryResponse]],
     summary="Get all enquiries",
+    include_in_schema=False
 )
 async def get_all_enquiries(
     db=Depends(get_db),              
@@ -93,6 +95,7 @@ async def get_enquiry(
 async def update_enquiry(
     enquiry_id: str,
     data: EnquiryUpdate,
+    _: dict = Depends(get_current_user),                
     db=Depends(get_db),
     
 ):

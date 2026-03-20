@@ -15,6 +15,7 @@ router = APIRouter(prefix="/customers", tags=["Customers"])
     response_model=StandardResponse[CustomerResponse],
     status_code=status.HTTP_201_CREATED,
     summary="Create a new customer",
+    include_in_schema=False
 )
 async def create_customer(
     data: CustomerCreate,
@@ -57,6 +58,7 @@ async def get_all_customers_paginated(
     "/fetch_all",
     response_model=StandardResponse[List[CustomerResponse]],
     summary="Get all customers",
+    include_in_schema=False
 )
 async def get_all_customers(db=Depends(get_db)):
     """Return all the customers"""
@@ -72,6 +74,7 @@ async def get_all_customers(db=Depends(get_db)):
     "/search",
     response_model=StandardResponse[CustomerResponse],
     summary="Get a single customer by Phone Number",
+    include_in_schema=False
 )
 async def get_customer_by_phone(
     phone: str = Query(..., description="The phone number of the customer"),
@@ -109,12 +112,13 @@ async def get_customer(
     "/{customer_id}",
     response_model=StandardResponse[CustomerResponse],
     summary="Partially update a customer",
+    include_in_schema=False
 )
 async def update_customer(
     customer_id: str,
     data: CustomerUpdate,
     db=Depends(get_db),
-    _: dict = Depends(get_current_user),                                        
+    # _: dict = Depends(get_current_user),                                     
 ):
     """
     Update one or more fields of a customer.

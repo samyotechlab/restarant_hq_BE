@@ -54,6 +54,7 @@ async def get_all_services_paginated(
     "/fetch_all",
     response_model=StandardResponse[List[ServiceResponse]],
     summary="Get all Services",
+    include_in_schema=False
 )
 async def get_all_services(db=Depends(get_db)):
     result = await ServiceController.get_all_services(db)

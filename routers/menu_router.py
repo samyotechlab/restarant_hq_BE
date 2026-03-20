@@ -83,6 +83,7 @@ async def get_all_menu_items_paginated(
     "/fetch_all",
     response_model=StandardResponse[List[MenuItemResponse]],
     summary="Get all menu items",
+    include_in_schema=False
 )
 async def get_all_items(db=Depends(get_db)):
     result = await MenuController.get_all_items(db)

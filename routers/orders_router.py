@@ -13,6 +13,7 @@ router = APIRouter(prefix="/orders", tags=["Orders"])
     response_model=StandardResponse[OrderResponse],
     status_code=status.HTTP_201_CREATED,
     summary="Create a new order",
+    include_in_schema=False
 )
 async def create_order(
     data: OrderCreate,
@@ -31,6 +32,7 @@ async def create_order(
     "/fetch_all",
     response_model=StandardResponse[list[OrderResponse]],
     summary="Get all orders",
+    include_in_schema=False
 )
 async def get_all_orders(
     db=Depends(get_db),
