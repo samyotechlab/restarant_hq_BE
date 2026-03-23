@@ -20,7 +20,7 @@ from models.menu_model import (
 
 N8N_WEBHOOK_URL = os.getenv(
     "N8N_CATALOG_SYNC_WEBHOOK",
-    "https://poojavirk.app.n8n.cloud/webhook/menu-catalog-sync"
+    "https://n8n.srv1102521.hstgr.cloud/webhook/menu-catalog-sync"
 )
 
 
