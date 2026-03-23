@@ -64,29 +64,26 @@ class CustomerController:
 
     @staticmethod
     async def create_customer(data: CustomerCreate, db) -> CustomerResponse:
-        """Register a brand-new customer. Rejects duplicate emails."""
-        existing = await db["customers"].find_one({"email": data.email})
-        if existing:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="A customer with this email already exists.",
-            )
+        """Register a brand-new customer. Rejects duplicate emails if provided."""
+
+        if data.email:
+            existing = await db["customers"].find_one({"email": data.email})
+            if existing:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="A customer with this email already exists.",
+                )
 
         now = datetime.now(timezone.utc)
-        customer_doc = {
+        customer_doc = data.model_dump()
+    
+        customer_doc.update({
             "customer_id": f"CUS-{uuid4().hex[:8].upper()}",
-            "name": data.name,
-            "country_code": data.country_code,
-            "phone_number": data.phone_number,
-            "email": data.email,
-            "address": data.address,
-            "city": data.city,
-            "pincode": data.pincode,
             "orders": [],
-            "status": CustomerStatus.NEW.value,
+            "status": data.status.value,
             "created_at": now,
             "updated_at": now,
-        }
+        })
 
         result = await db["customers"].insert_one(customer_doc)
         customer_doc["_id"] = result.inserted_id
