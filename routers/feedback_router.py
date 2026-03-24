@@ -1,5 +1,6 @@
 from typing import List
 from fastapi import APIRouter, Depends, status, Query
+from auth.dependencies import get_current_user
 from db.database import get_db
 from models.feedback_model import (
     FeedbackCreate,
@@ -18,6 +19,7 @@ router = APIRouter(prefix="/feedback", tags=["Feedback"])
     response_model=StandardResponse[FeedbackResponse],
     status_code=status.HTTP_201_CREATED,
     summary="Create a new feedback",
+    include_in_schema=False,
 )
 async def create_feedback(
     data: FeedbackCreate,
@@ -37,6 +39,7 @@ async def create_feedback(
     "/fetch_all",
     response_model=StandardResponse[List[FeedbackResponse]],
     summary="Get all feedback unpaginated",
+    include_in_schema=False,
 )
 async def fetch_all_feedback(
     db=Depends(get_db),
@@ -60,6 +63,7 @@ async def get_paginated_feedback(
     page: int = Query(default=1, ge=1, description="Page number"),
     limit: int = Query(default=10, ge=1, le=100, description="Items per page"),
     db=Depends(get_db),
+    _: dict = Depends(get_current_user),   
     
 ):
     """Return a paginated list of feedback. No authentication required."""
@@ -79,7 +83,7 @@ async def get_paginated_feedback(
 async def get_feedback(
     feedback_id: str,
     db=Depends(get_db),
-    # no auth
+    _: dict = Depends(get_current_user),   
 ):
     """Fetch one feedback by its ID."""
     result = await FeedbackController.get_feedback(feedback_id, db)
@@ -99,7 +103,7 @@ async def update_feedback(
     feedback_id: str,
     data: FeedbackUpdate,
     db=Depends(get_db),
-    
+    _: dict = Depends(get_current_user),   
 ):
     """Update one or more fields of a feedback entry."""
     result = await FeedbackController.update_feedback(feedback_id, data, db)
@@ -118,7 +122,7 @@ async def update_feedback(
 async def delete_feedback(
     feedback_id: str,
     db=Depends(get_db),
-    # no auth
+    _: dict = Depends(get_current_user),   
 ):
     """Hard-delete a feedback entry."""
     result = await FeedbackController.delete_feedback(feedback_id, db)

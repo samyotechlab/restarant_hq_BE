@@ -8,7 +8,6 @@ from models.feedback_model import (
     FeedbackCreate,
     FeedbackResponse,
     FeedbackUpdate,
-    FeedbackStatus,
     PopulatedFeedbackCustomer,
     PopulatedFeedbackOrder,
     PaginatedFeedbackResponse,
@@ -66,7 +65,6 @@ async def _populate_feedback(doc: dict, db) -> FeedbackResponse:
         food_quality_rating=doc.get("food_quality_rating"),
         delivery_rating=doc.get("delivery_rating"),
         comment=doc.get("comment"),
-        status=doc.get("status"),
         created_at=doc["created_at"],
         updated_at=doc["updated_at"],
     )
@@ -100,7 +98,6 @@ class FeedbackController:
         now = datetime.now(timezone.utc)
         feedback_doc = {
             "feedback_id": f"FDB-{uuid4().hex[:8].upper()}",   # e.g. FDB-3F9A1B2C
-            "status": data.status.value if data.status else FeedbackStatus.PENDING.value,
             "created_at": now,
             "updated_at": now,
             **{k: v for k, v in data.model_dump(exclude_none=True).items()
