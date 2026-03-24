@@ -14,6 +14,7 @@ from routers.enquiry_router import router as enquiry_router
 from routers.session import router as session_router
 from routers.services_router import router as services_router
 from routers.orders_router import router as order_router
+from routers.feedback_router import router as feedback_router
 from routers.campaign_router import router as campaign_router
 from routers.help_ticket_router import router as help_ticket_router
 
@@ -71,6 +72,7 @@ app.include_router(menu_router, prefix="/api")
 app.include_router(enquiry_router, prefix="/api")
 app.include_router(services_router, prefix="/api")
 app.include_router(order_router, prefix="/api")
+app.include_router(feedback_router, prefix="/api")
 app.include_router(campaign_router, prefix="/api")
 app.include_router(help_ticket_router, prefix="/api")
 
