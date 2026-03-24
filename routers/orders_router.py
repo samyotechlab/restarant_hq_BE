@@ -47,6 +47,25 @@ async def get_all_orders(
 
 
 @router.get(
+    "/by_phone/{phone}",
+    response_model=StandardResponse[list[OrderResponse]],
+    summary="Get recent orders by customer phone",
+    include_in_schema=False
+)
+async def get_orders_by_phone(
+    phone: str,
+    limit: int = Query(default=3, ge=1, le=10),
+    db=Depends(get_db),
+):
+    result = await OrderController.get_orders_by_phone(db, phone, limit)
+    return StandardResponse(
+        status_code=status.HTTP_200_OK,
+        message="Orders Fetched Successfully",
+        result_data=result,
+    )
+
+
+@router.get(
     "/",
     response_model=StandardResponse[PaginatedOrderResponse],
     summary="Get all orders with pagination",
@@ -70,11 +89,12 @@ async def get_all_orders_paginated(
     "/{order_id}",
     response_model=StandardResponse[OrderResponse],
     summary="Get a single order by ID",
+    include_in_schema=False
 )
 async def get_order(
     order_id: str,
     db=Depends(get_db),
-    _: dict = Depends(get_current_user),
+    # _: dict = Depends(get_current_user),
 ):
     """Fetch one order by its ID — customer and items are populated."""
     result = await OrderController.get_order(order_id, db)

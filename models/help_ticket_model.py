@@ -28,22 +28,22 @@ class TicketSource(str, Enum):
 class HelpTicketCreate(BaseModel):
     """All fields optional — frontend handles required validation."""
     customer: Optional[str] = None              
-    issue: Optional[str] = Field(None, min_length=2, max_length=500)
+    issue: Optional[str] = Field(None)
     status: Optional[TicketStatus] = Field(default=TicketStatus.OPEN)
     priority: Optional[TicketPriority] = Field(default=TicketPriority.LOW)
-    category: Optional[str] = Field(None, min_length=2, max_length=100)
-    assigned_agent: Optional[str] = Field(None, min_length=2, max_length=100)
+    category: Optional[str] = Field(None)
+    assigned_agent: Optional[str] = Field(None)
     source: Optional[TicketSource] = Field(default=TicketSource.MANUAL)
 
 
 class HelpTicketUpdate(BaseModel):
     """All fields optional — supports partial updates."""
     customer: Optional[str] = None
-    issue: Optional[str] = Field(None, min_length=2, max_length=500)
+    issue: Optional[str] = Field(None)
     status: Optional[TicketStatus] = None
     priority: Optional[TicketPriority] = None
-    category: Optional[str] = Field(None, min_length=2, max_length=100)
-    assigned_agent: Optional[str] = Field(None, min_length=2, max_length=100)
+    category: Optional[str] = Field(None)
+    assigned_agent: Optional[str] = Field(None)
     source: Optional[TicketSource] = None
 
 
