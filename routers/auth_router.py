@@ -19,6 +19,7 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
     response_model=StandardResponse[UserResponse],
     status_code=status.HTTP_201_CREATED,
     summary="Register a new user",
+    include_in_schema=False
 )
 async def register(data: UserCreate, db=Depends(get_db)):
     """
@@ -35,6 +36,7 @@ async def register(data: UserCreate, db=Depends(get_db)):
     "/login",
     response_model=StandardResponse[TokenResponse],
     summary="Login and receive access + refresh tokens",
+    include_in_schema=False
 )
 async def login(data: UserLogin, db=Depends(get_db)):
     """
@@ -51,6 +53,7 @@ async def login(data: UserLogin, db=Depends(get_db)):
     "/refresh",
     response_model=StandardResponse[AccessTokenResponse],
     summary="Get a new access token using a refresh token",
+    include_in_schema=False
 )
 async def refresh_token(body: RefreshRequest, db=Depends(get_db)):
     """
@@ -68,6 +71,7 @@ async def refresh_token(body: RefreshRequest, db=Depends(get_db)):
     response_model=StandardResponse[dict],
     summary="Logout and invalidate refresh token",
     status_code=status.HTTP_200_OK,
+    include_in_schema=False
 )
 async def logout(body: RefreshRequest, db=Depends(get_db), _: dict = Depends(get_current_user)):
     """
