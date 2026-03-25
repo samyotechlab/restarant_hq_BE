@@ -18,24 +18,26 @@ class CampaignStatus(str, Enum):
 class CampaignCreate(BaseModel):
     """All fields optional — frontend handles required validation."""
     campaign_type: Optional[CampaignType] = None
-    campaign_name: Optional[str] = Field(None, min_length=2, max_length=100)
-    description: Optional[str] = Field(None, min_length=2, max_length=500)
-    menu_items: Optional[List[str]] = []        # list of menu item MongoDB ObjectIds
+    campaign_name: Optional[str] = Field(None)
+    description: Optional[str] = Field(None)
+    menu_items: Optional[List[str]] = []
     offer_price: Optional[float] = Field(default=0)
     discount_percentage: Optional[float] = Field(default=0)
     start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
     status: Optional[CampaignStatus] = Field(default=CampaignStatus.SCHEDULED)
 
 
 class CampaignUpdate(BaseModel):
     """All fields optional — supports partial updates."""
     campaign_type: Optional[CampaignType] = None
-    campaign_name: Optional[str] = Field(None, min_length=2, max_length=100)
-    description: Optional[str] = Field(None, min_length=2, max_length=500)
+    campaign_name: Optional[str] = Field(None)
+    description: Optional[str] = Field(None)
     menu_items: Optional[List[str]] = None
     offer_price: Optional[float] = None
     discount_percentage: Optional[float] = None
     start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
     status: Optional[CampaignStatus] = None
 
 
@@ -50,14 +52,15 @@ class PopulatedMenuItem(BaseModel):
 class CampaignResponse(BaseModel):
     """Shape of the campaign returned to the client."""
     id: str
-    campaign_id: str                            # server-generated e.g. CMP-3F9A1B2C
+    campaign_id: str
     campaign_type: Optional[CampaignType] = None
     campaign_name: Optional[str] = None
     description: Optional[str] = None
-    menu_items: List[PopulatedMenuItem] = []    # populated with item_name, price, category
+    menu_items: List[PopulatedMenuItem] = []
     offer_price: Optional[float] = None
     discount_percentage: Optional[float] = None
     start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
     status: Optional[CampaignStatus] = None
     created_at: datetime
     updated_at: datetime

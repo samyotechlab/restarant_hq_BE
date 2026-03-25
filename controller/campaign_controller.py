@@ -51,6 +51,7 @@ async def _populate_campaign(doc: dict, db) -> CampaignResponse:
         offer_price=doc.get("offer_price"),
         discount_percentage=doc.get("discount_percentage"),
         start_date=doc.get("start_date"),
+        end_date=doc.get("end_date"),
         status=doc.get("status"),
         created_at=doc["created_at"],
         updated_at=doc["updated_at"],

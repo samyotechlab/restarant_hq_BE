@@ -1,12 +1,14 @@
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 
 from fastapi.responses import JSONResponse
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from db.database import connect_db, close_db
 from models.base_model import StandardResponse
+from models.campaign_model import CampaignStatus
 from routers import auth_router, user_router
 from routers.customers_router import router as customers_router
 from routers.menu_router import router as menu_router
@@ -17,15 +19,50 @@ from routers.orders_router import router as order_router
 from routers.feedback_router import router as feedback_router
 from routers.campaign_router import router as campaign_router
 from routers.help_ticket_router import router as help_ticket_router
+from db.database import db
 
+
+async def check_campaign_status_updates():
+    """Background task to sync campaign statuses in MongoDB."""
+    if db is None:
+        return
+
+    now = datetime.now(timezone.utc)
+    campaigns_col = db["campaigns"]
+
+    start_result = await campaigns_col.update_many(
+        {
+            "status": CampaignStatus.SCHEDULED.value,
+            "start_date": {"$lte": now}
+        },
+        {"$set": {"status": CampaignStatus.ACTIVE.value, "updated_at": now}}
+    )
+    
+    end_result = await campaigns_col.update_many(
+        {
+            "status": CampaignStatus.ACTIVE.value,
+            "end_date": {"$lte": now}
+        },
+        {"$set": {"status": CampaignStatus.COMPLETED.value, "updated_at": now}}
+    )
+
+    if start_result.modified_count > 0:
+        print(f"🚀 Activated {start_result.modified_count} campaigns.")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await connect_db()
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(check_campaign_status_updates, 'interval', minutes=600)
+    scheduler.start()
+    app.state.scheduler = scheduler
+    print("✅ Database connected and Scheduler started")
+    
     yield
+    scheduler.shutdown()
     await close_db()
-
+    print("🛑 Scheduler stopped and Database connection closed")
 
 app = FastAPI(
     title="Restaurant HQ FastAPI Backend",
