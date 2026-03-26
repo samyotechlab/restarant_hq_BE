@@ -6,7 +6,7 @@ services:
     container_name: gangour-redis
     ports:
       - "6379:6379"
-    command: redis-server --requirepass GangourRedis@2026 --appendonly yes
+    command: redis-server --requirepass GangourRedis@2026 --appendonly yes --databases 16
     volumes:
       - redis_data:/data
     restart: always
@@ -17,7 +17,7 @@ services:
     ports:
       - "8081:8081"
     environment:
-      - REDIS_HOSTS=local:redis:6379:0:GangourRedis@2026
+      - REDIS_HOSTS=local:redis:6379:0:GangourRedis@2026,local:redis:6379:1:GangourRedis@2026
     depends_on:
       - redis
     restart: always
