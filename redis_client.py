@@ -100,7 +100,7 @@ def store_feedback_queue(order_id: str, phone: str, session_id: str, customer_na
 
 
 # ── Get all pending feedback for a date ───────────────────────
-async def get_pending_feedback(send_date: str) -> list:
+def get_pending_feedback(send_date: str) -> list:
     try:
         if not send_date:
             return []
@@ -109,19 +109,19 @@ async def get_pending_feedback(send_date: str) -> list:
         cursor: int = 0
 
         while True:
-            result = await r_feedback.scan(cursor=cursor, match="feedback:*", count=100)
-            cursor = int(result[0])
-            batch: list[str] = list(result[1])
+            result = r_feedback.scan(cursor=cursor, match="feedback:*", count=100)
+            cursor = int(result[0]) # type: ignore
+            batch: list[str] = list(result[1]) # type: ignore
             keys.extend(batch)
             if cursor == 0:
                 break
 
         pending = []
         for key in keys:
-            raw: str | None = await r_feedback.get(key)
+            raw = r_feedback.get(key)
             if raw:
                 try:
-                    entry: dict = json.loads(raw)
+                    entry: dict = json.loads(raw) # type: ignore
                     if entry.get("send_date") == send_date and not entry.get("sent"):
                         pending.append(entry)
                 except json.JSONDecodeError:
@@ -135,17 +135,17 @@ async def get_pending_feedback(send_date: str) -> list:
 
 
 # ── Mark feedback as sent ─────────────────────────────────────
-async def mark_feedback_sent(order_id: str) -> bool:
+def mark_feedback_sent(order_id: str) -> bool:
     try:
         if not order_id:
             return False
         
         key = f"feedback:{order_id}"
-        raw: str | None = await r_feedback.get(key)
+        raw = r_feedback.get(key)
         
         if raw:
             try:
-                entry: dict = json.loads(raw)
+                entry: dict = json.loads(raw) # type: ignore
                 entry["sent"] = True
                 entry["sent_at"] = datetime.utcnow().isoformat()
                 r_feedback.setex(key, FEEDBACK_EXPIRY, json.dumps(entry))
@@ -159,30 +159,30 @@ async def mark_feedback_sent(order_id: str) -> bool:
 
 
 # ── Delete feedback entry ─────────────────────────────────────
-async def delete_feedback(order_id: str) -> bool:
+def delete_feedback(order_id: str) -> bool:
     try:
         if not order_id:
             return False
         
-        result = await r_feedback.delete(f"feedback:{order_id}")
-        return result > 0
+        result = r_feedback.delete(f"feedback:{order_id}")
+        return bool(result > 0) # type: ignore
     except redis.ConnectionError as e:
         print(f"Error deleting feedback: {e}")
         return False
 
 
 # ── Get specific feedback entry ───────────────────────────────
-async def get_feedback(order_id: str) -> dict | None:
+def get_feedback(order_id: str) -> dict | None:
     try:
         if not order_id:
             return None
         
         key = f"feedback:{order_id}"
-        raw: str | None = await r_feedback.get(key)
+        raw = r_feedback.get(key)
         
         if raw:
             try:
-                return json.loads(raw)
+                return json.loads(raw) # type: ignore
             except json.JSONDecodeError:
                 return None
         return None

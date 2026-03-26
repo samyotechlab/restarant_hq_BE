@@ -58,10 +58,10 @@ def store_feedback(payload: FeedbackStoreRequest):
 
 # ── Get pending feedbacks for today or given date ─────────────
 @router.get("/pending")
-async def pending_feedback(date: str = None): # pyright: ignore[reportArgumentType]
+def pending_feedback(date: str = None): # pyright: ignore[reportArgumentType]
     try:
         target_date = date or datetime.utcnow().strftime("%Y-%m-%d")
-        data = await get_pending_feedback(target_date)
+        data = get_pending_feedback(target_date)
         return {
             "status": "ok",
             "date": target_date,
