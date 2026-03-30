@@ -1,8 +1,8 @@
 import asyncio
 import math
 import httpx
-import os
 from datetime import datetime, timezone
+from config.settings import settings
 from typing import List
 from uuid import uuid4
 from bson import ObjectId
@@ -18,10 +18,7 @@ from models.menu_model import (
     BulkMenuUploadResponse,
 )
 
-N8N_WEBHOOK_URL = os.getenv(
-    "N8N_CATALOG_SYNC_WEBHOOK",
-    "https://n8n.srv1102521.hstgr.cloud/webhook/menu-catalog-sync"
-)
+N8N_WEBHOOK_URL = settings.N8N_CATALOG_SYNC_WEBHOOK
 
 
 def _to_response(doc: dict) -> MenuItemResponse:
