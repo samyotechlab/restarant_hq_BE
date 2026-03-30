@@ -67,7 +67,7 @@ def _build_sync_payload(item_doc: dict, sync_type: str = "single") -> dict:
 async def _do_sync(payload: dict) -> None:
     """Internal actual HTTP call to n8n — runs in background."""
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(N8N_WEBHOOK_URL, json=payload)
             print(f"📡 n8n response: {response.status_code} {response.text[:200]}")
     except Exception as e:
