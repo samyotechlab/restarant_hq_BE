@@ -20,12 +20,14 @@ from routers.feedback_router import router as feedback_router
 from routers.campaign_router import router as campaign_router
 from routers.help_ticket_router import router as help_ticket_router
 from routers.feedback import router as feedback_queue_router
-from db.database import db
 
 
 async def check_campaign_status_updates():
     """Background task to sync campaign statuses in MongoDB."""
+    from db.database import get_db
+    db = get_db()
     if db is None:
+        print("⏳ Scheduler: Waiting for DB connection...")
         return
 
     now = datetime.now(timezone.utc)
@@ -55,7 +57,7 @@ async def check_campaign_status_updates():
 async def lifespan(app: FastAPI):
     await connect_db()
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(check_campaign_status_updates, 'interval', minutes=600)
+    scheduler.add_job(check_campaign_status_updates, 'interval', minutes=10)
     scheduler.start()
     app.state.scheduler = scheduler
     print("✅ Database connected and Scheduler started")
@@ -105,7 +107,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 app.include_router(auth_router, prefix="/api")
 app.include_router(user_router, prefix="/api")
 app.include_router(session_router, prefix="/api")
-app.include_router(feedback_queue_router, prefix="/api")
+app.include_router(feedback_queue_router, prefix="/api", include_in_schema=False)
 app.include_router(customers_router, prefix="/api")
 app.include_router(menu_router, prefix="/api")
 app.include_router(enquiry_router, prefix="/api")

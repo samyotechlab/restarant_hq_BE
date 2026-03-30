@@ -75,20 +75,18 @@ class FeedbackController:
     async def create_feedback(data: FeedbackCreate, db) -> FeedbackResponse:
         """Create a new feedback entry."""
 
-       
-        if data.customer:
-            _validate_object_id(data.customer, "customer ID")
-            customer_exists = await db["customers"].find_one({"_id": ObjectId(data.customer)})
+        customer_exists = None
+        if data.phone_number:
+            customer_exists = await db["customers"].find_one({"phone_number": data.phone_number})
             if not customer_exists:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="Customer not found.",
                 )
 
-        
+        order_exists = None
         if data.order:
-            _validate_object_id(data.order, "order ID")
-            order_exists = await db["orders"].find_one({"_id": ObjectId(data.order)})
+            order_exists = await db["orders"].find_one({"order_id": data.order})
             if not order_exists:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
@@ -98,10 +96,12 @@ class FeedbackController:
         now = datetime.now(timezone.utc)
         feedback_doc = {
             "feedback_id": f"FDB-{uuid4().hex[:8].upper()}",   # e.g. FDB-3F9A1B2C
+            "customer": str(customer_exists["_id"]) if customer_exists else None,
+            "order": str(order_exists["_id"]) if order_exists else None,
             "created_at": now,
             "updated_at": now,
             **{k: v for k, v in data.model_dump(exclude_none=True).items()
-               if k != "status"},
+               if k not in ["customer", "order", "status"]},
         }
 
         result = await db["feedback"].insert_one(feedback_doc)
