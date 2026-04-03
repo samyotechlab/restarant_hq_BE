@@ -3,6 +3,8 @@ from enum import Enum
 from typing import List, Optional
 from pydantic import BaseModel, EmailStr, Field
 
+from models.orders_model import OrderItemResponse
+
 
 class CustomerStatus(str, Enum):
     NEW = "new"
@@ -18,8 +20,6 @@ class CustomerCreate(BaseModel):
     phone_number: str = Field(..., min_length=7, max_length=15, examples=["9876543210"])
     email: Optional[str] = None
     address: Optional[str] = Field(None)
-    city: Optional[str] = Field(None)
-    pincode: Optional[str] = Field(None)
     orders: List[str] = Field(default=[])
     status: CustomerStatus = Field(default=CustomerStatus.NEW)
 
@@ -31,15 +31,15 @@ class CustomerUpdate(BaseModel):
     phone_number: Optional[str] = Field(None, min_length=7, max_length=15)
     email: Optional[str] = None
     address: Optional[str] = Field(None)
-    city: Optional[str] = Field(None)
-    pincode: Optional[str] = Field(None)
     status: Optional[CustomerStatus] = None
 
 
 class PopulatedOrder(BaseModel):
     """Minimal order details embedded inside a customer response."""
+    id: str = Field(..., alias='id')
     order_id: str
     grand_total: Optional[float] = None
+    items: list[OrderItemResponse] = []
 
 
 class CustomerResponse(BaseModel):
@@ -51,8 +51,6 @@ class CustomerResponse(BaseModel):
     phone_number: str
     email: Optional[str] = None
     address: Optional[str] = None
-    city: Optional[str] = None
-    pincode: Optional[str] = None
     orders: List[PopulatedOrder] = []
     status: CustomerStatus
     created_at: datetime

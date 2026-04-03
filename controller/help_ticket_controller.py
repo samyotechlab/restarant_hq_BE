@@ -2,12 +2,13 @@ import math
 from datetime import datetime, timezone
 from uuid import uuid4
 from bson import ObjectId
-from fastapi import HTTPException, status
+from fastapi import HTTPException, exception_handlers, status
 
 from models.help_ticket_model import (
     HelpTicketCreate,
     HelpTicketResponse,
     HelpTicketUpdate,
+    PopulatedTicketOrder,
     TicketStatus,
     TicketSource,
     TicketPriority,
@@ -35,17 +36,50 @@ async def _populate_ticket(doc: dict, db) -> HelpTicketResponse:
             customer_doc = await db["customers"].find_one({"_id": ObjectId(doc["customer"])})
             if customer_doc:
                 populated_customer = PopulatedTicketCustomer(
+                    id=str(customer_doc.get("_id")),
                     customer_id=customer_doc.get("customer_id"),
                     name=customer_doc.get("name"),
+                    country_code=customer_doc.get('country_code'),
                     phone_number=customer_doc.get("phone_number"),
                 )
         except Exception:
+            pass
+
+    populated_order = None
+    if doc.get("order"):
+        try:
+            order_doc = await db["orders"].find_one({"order_id": doc["order"]})
+            if order_doc:
+                raw_items = order_doc.get("items", [])
+                formatted_items = []
+                for item in raw_items:
+                    menu_doc = await db["menu_items"].find_one({"_id": ObjectId(item["menu_item"])})
+                    formatted_items.append({
+                        "menu_item_id": item.get("menu_item"),
+                        "item_name": menu_doc.get("item_name"),
+                        "price": item.get("price"),
+                        "quantity": item.get("quantity"),
+                        "sub_total": item.get("sub_total"),
+                        "image": menu_doc.get("image"),
+                        "category": menu_doc.get("category"),
+                        "item_no": menu_doc.get("item_no")
+                    })
+                populated_order = PopulatedTicketOrder(
+                    id=str(order_doc.get("_id")),
+                    order_id=order_doc.get("order_id"),
+                    status=order_doc.get("status"),
+                    grand_total=order_doc.get("grand_total"),
+                    items=formatted_items,
+                )
+        except Exception as e:
+            print(e)
             pass
 
     return HelpTicketResponse(
         id=str(doc["_id"]),
         ticket_id=doc["ticket_id"],
         customer=populated_customer,
+        order=populated_order,
         issue=doc.get("issue"),
         status=doc.get("status"),
         priority=doc.get("priority"),
@@ -73,6 +107,14 @@ class HelpTicketController:
                     detail="Customer not found.",
                 )
 
+        if data.order:
+            order_exists = await db["orders"].find_one({"order_id": data.order})
+            if not order_exists:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Order not found.",
+                )
+            
         now = datetime.now(timezone.utc)
         ticket_doc = {
             "ticket_id": f"TKT-{uuid4().hex[:8].upper()}",     
@@ -153,6 +195,14 @@ class HelpTicketController:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="Customer not found.",
+                )
+
+        if "order" in update_fields:
+            order_exists = await db["orders"].find_one({"order_id": update_fields["order"]})
+            if not order_exists:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Order not found.",
                 )
 
         # convert enums to values

@@ -117,7 +117,7 @@ class CampaignController:
         skip = (page - 1) * limit
 
         total_results = await db["campaigns"].count_documents({})
-        campaigns = await db["campaigns"].find().skip(skip).limit(limit).to_list(length=None)
+        campaigns = await db["campaigns"].find().skip(skip).limit(limit).sort('created_at', -1).to_list(length=None)
         total_pages = math.ceil(total_results / limit)
 
         return PaginatedCampaignResponse(

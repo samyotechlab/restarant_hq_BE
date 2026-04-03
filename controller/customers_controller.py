@@ -27,11 +27,25 @@ async def _to_response(doc: dict, db) -> CustomerResponse:
         try:
             order_doc = await db["orders"].find_one({"_id": ObjectId(order_id_str)})
             if order_doc:
+                formatted_items = []
+                for item in order_doc.get("items", []):
+                    menu_doc = await db["menu_items"].find_one({"_id": ObjectId(item["menu_item"])})
+                    formatted_items.append({
+                        "menu_item_id": str(item.get("menu_item")),
+                        "item_name": menu_doc.get("item_name"),
+                        "price": item.get("price"),
+                        "quantity": item.get("quantity"),
+                        "sub_total": item.get("sub_total")
+                    })
+
                 populated_orders.append(PopulatedOrder(
-                    order_id=str(order_doc["_id"]),
+                    id=str(order_doc['_id']),
+                    order_id=order_doc.get("order_id"),
                     grand_total=order_doc.get("grand_total"),
+                    items=formatted_items,
                 ))
-        except Exception:
+        except Exception as e:
+            print(f"Error populating customer order {order_id_str}: {e}")
             continue
 
     return CustomerResponse(
@@ -42,8 +56,6 @@ async def _to_response(doc: dict, db) -> CustomerResponse:
         phone_number=doc["phone_number"],
         email=doc.get("email"),
         address=doc["address"],
-        city=doc["city"],
-        pincode=doc["pincode"],
         orders=populated_orders,
         status=doc["status"],
         created_at=doc["created_at"],
@@ -119,7 +131,7 @@ class CustomerController:
         skip = (page - 1) * limit
 
         total_results = await db["customers"].count_documents({})
-        customers = await db["customers"].find().skip(skip).limit(limit).to_list(length=None)
+        customers = await db["customers"].find().skip(skip).limit(limit).sort('created_at', -1).to_list(length=None)
         total_pages = math.ceil(total_results / limit)
 
         return PaginatedCustomerResponse(
@@ -225,8 +237,6 @@ class CustomerController:
                     "phone_number": customer.phone_number,
                     "email": customer.email,
                     "address": customer.address,
-                    "city": customer.city,
-                    "pincode": customer.pincode,
                     "orders": [],
                     "status": customer.status.value if hasattr(customer.status, "value") else customer.status,
                     "created_at": now,
@@ -263,7 +273,7 @@ class CustomerController:
         """
         Parse a CSV file and bulk insert customers.
         Expected CSV columns (header row required):
-        name, country_code, phone_number, email, address, city, pincode
+        name, country_code, phone_number, email, address
         """
         import csv
         import io
@@ -271,7 +281,7 @@ class CustomerController:
         content = file_bytes.decode("utf-8")
         reader = csv.DictReader(io.StringIO(content))
 
-        required_columns = {"name", "country_code", "phone_number", "email", "address", "city", "pincode"}
+        required_columns = {"name", "country_code", "phone_number", "email", "address"}
         if not required_columns.issubset(set(reader.fieldnames or [])):
             missing = required_columns - set(reader.fieldnames or [])
             raise HTTPException(
@@ -288,8 +298,6 @@ class CustomerController:
                     phone_number=row["phone_number"].strip(),
                     email=row["email"].strip(),
                     address=row["address"].strip(),
-                    city=row["city"].strip(),
-                    pincode=row["pincode"].strip(),
                 )
                 customers.append(customer)
             except Exception:
@@ -325,8 +333,6 @@ class CustomerController:
                     "phone_number": customer.phone_number,
                     "email": customer.email,
                     "address": customer.address,
-                    "city": customer.city,
-                    "pincode": customer.pincode,
                     "orders": [],
                     "status": CustomerStatus.NEW.value,
                     "created_at": now,

@@ -3,12 +3,13 @@ from enum import Enum
 from typing import List, Optional
 from pydantic import BaseModel, Field
 
+from models.orders_model import OrderItemResponse, OrderStatus
+
 
 class TicketStatus(str, Enum):
     OPEN = "open"
     PENDING = "pending"
     RESOLVED = "resolved"
-    ESCALATED = "escalated"
     CLOSED = "closed"
 
 
@@ -27,7 +28,8 @@ class TicketSource(str, Enum):
 
 class HelpTicketCreate(BaseModel):
     """All fields optional — frontend handles required validation."""
-    customer: Optional[str] = None              
+    customer: Optional[str] = None
+    order: Optional[str] = None              
     issue: Optional[str] = Field(None)
     status: Optional[TicketStatus] = Field(default=TicketStatus.OPEN)
     priority: Optional[TicketPriority] = Field(default=TicketPriority.LOW)
@@ -39,6 +41,7 @@ class HelpTicketCreate(BaseModel):
 class HelpTicketUpdate(BaseModel):
     """All fields optional — supports partial updates."""
     customer: Optional[str] = None
+    order: Optional[str] = None       
     issue: Optional[str] = Field(None)
     status: Optional[TicketStatus] = None
     priority: Optional[TicketPriority] = None
@@ -49,9 +52,20 @@ class HelpTicketUpdate(BaseModel):
 
 class PopulatedTicketCustomer(BaseModel):
     """Minimal customer details embedded in help ticket response."""
+    id: Optional[str] = None
     customer_id: Optional[str] = None
     name: Optional[str] = None
+    country_code: Optional[str] = None
     phone_number: Optional[str] = None
+
+
+class PopulatedTicketOrder(BaseModel):
+    """Minimal order details embedded in help ticket response."""
+    id: str = Field(..., alias="id")
+    order_id: str
+    status: OrderStatus
+    grand_total: Optional[float] = None
+    items: List[OrderItemResponse] = []
 
 
 class HelpTicketResponse(BaseModel):
@@ -59,6 +73,7 @@ class HelpTicketResponse(BaseModel):
     id: str
     ticket_id: str                              
     customer: Optional[PopulatedTicketCustomer] = None
+    order: Optional[PopulatedTicketOrder] = None
     issue: Optional[str] = None
     status: Optional[TicketStatus] = None
     priority: Optional[TicketPriority] = None
