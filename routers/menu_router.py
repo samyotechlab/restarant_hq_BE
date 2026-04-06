@@ -1,6 +1,8 @@
+import os
 from typing import List
+from uuid import uuid4
 
-from fastapi import APIRouter, Depends, status, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, File, UploadFile, status, Query
 from auth.dependencies import get_current_user
 from db.database import get_db
 from models.menu_model import (
@@ -14,7 +16,7 @@ from models.base_model import StandardResponse
 from controller.menu_controller import MenuController
 
 router = APIRouter(prefix="/menu-item", tags=["Menu"])
-
+UPLOAD_DIR = "uploads"
 
 @router.post(
     "/",
@@ -33,6 +35,40 @@ async def create_menu_item(
         status_code=status.HTTP_201_CREATED,
         message="Menu Item Created Successfully",
         result_data=result,
+    )
+
+
+@router.post(
+    "/bulk_upload_file",
+    response_model=StandardResponse[dict],
+    status_code=status.HTTP_200_OK,
+    summary="Bulk upload menu items from CSV or Excel file",
+)
+async def bulk_upload_menu_items_file(
+    file: UploadFile = File(...),
+    db=Depends(get_db),
+):
+    """
+    Upload a CSV or Excel file.
+    Processes synchronously and returns inserted/updated/failed counts.
+    File is deleted from disk after processing.
+    """
+    file_id = str(uuid4())
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    file_path = f"{UPLOAD_DIR}/{file_id}_{file.filename}"
+
+    # Save file to disk in 1MB chunks
+    with open(file_path, "wb") as f:
+        while chunk := await file.read(1024 * 1024):
+            f.write(chunk)
+
+    # Direct await — so we get counts back to return to frontend
+    result = await MenuController.bulk_upload_from_file_path(file_path, db)
+
+    return StandardResponse(
+        status_code=status.HTTP_200_OK,
+        message="Bulk upload completed",
+        result_data=result,  # {"inserted": x, "updated": y, "failed": z}
     )
 
 
