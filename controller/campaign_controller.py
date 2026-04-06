@@ -35,7 +35,7 @@ async def _populate_campaign(doc: dict, db) -> CampaignResponse:
             populated_items.append(PopulatedMenuItem(
                 menu_item_id=item_id_str,
                 item_name=menu_doc.get("item_name") if menu_doc else None,
-                price=menu_doc.get("price") if menu_doc else None,
+                price=menu_doc.get("online_price") if menu_doc else None,
                 category=menu_doc.get("category") if menu_doc else None,
             ))
         except Exception:
