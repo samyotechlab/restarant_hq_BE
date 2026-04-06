@@ -249,3 +249,56 @@ class OrderController:
                 detail="Order not found.",
             )
         return {"deleted_id": order_id}
+    
+    @staticmethod
+    async def bulk_upload(data, db):
+        processed = 0
+        failed = 0
+        
+        phones = list(set([
+            row.get("Phone") or row.get("phone") or row.get("phone_number")
+            for row in data
+            if row.get("Phone") or row.get("phone") or row.get("phone_number")
+            ]))
+        
+        customers = await db["customers"].find({
+            "phone_number": {"$in": phones}
+            }).to_list(length=None)
+        
+        phone_map = {
+            c.get("phone_number"): str(c.get("_id"))
+            for c in customers
+            }
+        
+        for row in data:
+            try:
+                phone = row.get("Phone") or row.get("phone") or row.get("phone_number")
+                customer_id = phone_map.get(phone)
+                
+                payload_dict = {
+                    **row,
+                    **({"customer": customer_id} if customer_id else {})
+                    }
+                
+                
+                allowed_fields = OrderCreate.model_fields.keys()
+                
+                filtered_payload = {
+                    k: v for k, v in payload_dict.items()
+                    if k in allowed_fields
+                    }
+                
+                order_obj = OrderCreate(**filtered_payload)
+                
+                await OrderController.create_order(order_obj, db)
+                
+                processed += 1
+                
+            except Exception as e:
+                failed += 1
+                print("Failed row:", str(e))
+                
+        return {
+            "processed": processed,
+            "failed": failed
+            }

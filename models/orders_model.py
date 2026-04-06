@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 
@@ -103,3 +103,8 @@ class PaginatedOrderResponse(BaseModel):
     limit: int
     total_pages: int
     data: List[OrderResponse]
+
+
+
+class BulkOrderCreate(BaseModel):
+    data: List[Dict[str, Any]]

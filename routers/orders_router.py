@@ -4,6 +4,7 @@ from db.database import get_db
 from models.orders_model import OrderCreate, OrderResponse, OrderUpdate, PaginatedOrderResponse
 from models.base_model import StandardResponse
 from controller.orders_controller import OrderController
+from models.orders_model import BulkOrderCreate
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
@@ -140,5 +141,23 @@ async def delete_order(
     return StandardResponse(
         status_code=status.HTTP_200_OK,
         message="Order Deleted Successfully",
+        result_data=result,
+    )
+
+@router.post(
+    "/bulk_upload",
+    response_model=StandardResponse[dict],
+    status_code=status.HTTP_201_CREATED,
+    summary="Bulk upload orders"
+)
+async def bulk_upload_orders(
+    payload: BulkOrderCreate,
+    db=Depends(get_db),
+):
+    result = await OrderController.bulk_upload(payload.data, db)
+
+    return StandardResponse(
+        status_code=status.HTTP_201_CREATED,
+        message="Bulk Upload Completed",
         result_data=result,
     )
