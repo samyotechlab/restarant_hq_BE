@@ -26,6 +26,7 @@ class CampaignCreate(BaseModel):
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     status: Optional[CampaignStatus] = Field(default=CampaignStatus.SCHEDULED)
+    image_url: Optional[str] = None
 
 
 class CampaignUpdate(BaseModel):
@@ -39,6 +40,7 @@ class CampaignUpdate(BaseModel):
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     status: Optional[CampaignStatus] = None
+    image_url: Optional[str] = None
 
 
 class PopulatedMenuItem(BaseModel):
@@ -62,6 +64,7 @@ class CampaignResponse(BaseModel):
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     status: Optional[CampaignStatus] = None
+    image_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

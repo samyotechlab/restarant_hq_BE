@@ -53,6 +53,7 @@ async def _populate_campaign(doc: dict, db) -> CampaignResponse:
         start_date=doc.get("start_date"),
         end_date=doc.get("end_date"),
         status=doc.get("status"),
+        image_url=doc.get("image_url"),
         created_at=doc["created_at"],
         updated_at=doc["updated_at"],
     )
@@ -81,11 +82,12 @@ class CampaignController:
             "offer_price": data.offer_price or 0,
             "discount_percentage": data.discount_percentage or 0,
             "menu_items": data.menu_items or [],
+            "image_url": data.image_url,
             "created_at": now,
             "updated_at": now,
             # only store fields that were actually sent
             **{k: v for k, v in data.model_dump(exclude_none=True).items()
-               if k not in {"status", "offer_price", "discount_percentage", "menu_items"}},
+               if k not in {"status", "offer_price", "discount_percentage", "menu_items", "image_url"}},
         }
 
         result = await db["campaigns"].insert_one(campaign_doc)

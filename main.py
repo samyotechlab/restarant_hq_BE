@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -73,7 +74,7 @@ app = FastAPI(
     lifespan=lifespan,
     redirect_slashes=False
 )
-
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:8080",
