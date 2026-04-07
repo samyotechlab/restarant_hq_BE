@@ -1,8 +1,9 @@
 from datetime import datetime
 import os
 from typing import List, Optional
+from urllib.parse import urlparse
 import uuid
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status, Query
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status, Query
 from auth.dependencies import get_current_user
 from db.database import get_db
 from models.campaign_model import (
@@ -19,7 +20,6 @@ from controller.campaign_controller import CampaignController
 router = APIRouter(prefix="/campaigns", tags=["Campaigns"])
 
 UPLOAD_DIR = "uploads/campaigns"
-BASE_URL = "https://mygangour.samyotech.in/api"
 
 @router.post(
     "/",
@@ -29,6 +29,7 @@ BASE_URL = "https://mygangour.samyotech.in/api"
     include_in_schema=False
 )
 async def create_campaign(
+    request: Request,
     campaign_name: Optional[str] = Form(None),
     campaign_type: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
@@ -58,7 +59,8 @@ async def create_campaign(
         filename = f"{uuid.uuid4().hex}.{ext}"
         with open(f"{UPLOAD_DIR}/{filename}", "wb") as f:
             f.write(contents)
-        image_url = f"{BASE_URL}/uploads/campaigns/{filename}"
+        base_url = str(request.base_url).rstrip("/")
+        image_url = f"{base_url}/uploads/campaigns/{filename}"
 
     # Build CampaignCreate from form fields
     data = CampaignCreate(
@@ -146,12 +148,73 @@ async def get_campaign(
 )
 async def update_campaign(
     campaign_id: str,
-    data: CampaignUpdate,
+    request: Request,
+    campaign_name: Optional[str] = Form(None),
+    campaign_type: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    campaign_status: Optional[str] = Form(None),
+    start_date: Optional[str] = Form(None),
+    end_date: Optional[str] = Form(None),
+    offer_price: Optional[float] = Form(None),
+    discount_percentage: Optional[float] = Form(None),
+    menu_items: Optional[List[str]] = Form(None),
+    image: Optional[UploadFile] = File(None),
     db=Depends(get_db),
-    _: dict = Depends(get_current_user),                
+    _: dict = Depends(get_current_user),
 ):
-    """Update one or more fields of a campaign."""
+    existing = await CampaignController.get_campaign(campaign_id, db)
+
+    if not existing:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    image_url = existing.image_url
+
+    # 👉 If new image uploaded
+    if image and image.filename:
+        allowed = ["image/jpeg", "image/png", "image/webp", "image/jpg"]
+        if image.content_type not in allowed:
+            raise HTTPException(status_code=400, detail="Only JPG, PNG, WEBP allowed")
+
+        contents = await image.read()
+        if len(contents) > 5 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="Image must be under 5MB")
+        
+        # 🔥 DELETE OLD IMAGE
+        if existing.image_url:
+            parsed = urlparse(existing.image_url)
+            file_path = parsed.path.replace("/uploads/", "")
+            full_path = os.path.join("uploads", file_path)
+
+            if os.path.exists(full_path) and os.path.isfile(full_path):
+                os.remove(full_path)
+
+        # 🔥 SAVE NEW IMAGE
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+        ext = image.filename.split(".")[-1].lower()
+        filename = f"{uuid.uuid4().hex}.{ext}"
+
+        with open(f"{UPLOAD_DIR}/{filename}", "wb") as f:
+            f.write(contents)
+
+        base_url = str(request.base_url).rstrip("/")
+        image_url = f"{base_url}/uploads/campaigns/{filename}"
+
+    # 🔥 Build update object
+    data = CampaignUpdate(
+        campaign_name=campaign_name,
+        campaign_type=CampaignType(campaign_type) if campaign_type else None,
+        description=description,
+        status=CampaignStatus(campaign_status) if campaign_status else None,
+        start_date=datetime.fromisoformat(start_date) if start_date else None,
+        end_date=datetime.fromisoformat(end_date) if end_date else None,
+        offer_price=offer_price,
+        discount_percentage=discount_percentage,
+        menu_items=menu_items,
+        image_url=image_url,
+    )
+
     result = await CampaignController.update_campaign(campaign_id, data, db)
+
     return StandardResponse(
         status_code=status.HTTP_200_OK,
         message="Campaign Updated Successfully",
@@ -167,12 +230,27 @@ async def update_campaign(
 async def delete_campaign(
     campaign_id: str,
     db=Depends(get_db),
-    _: dict = Depends(get_current_user),                
+    _: dict = Depends(get_current_user),
 ):
-    """Hard-delete a campaign."""
-    result = await CampaignController.delete_campaign(campaign_id, db)
+    existing = await CampaignController.get_campaign(campaign_id, db)
+
+    if not existing:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    # 🔥 DELETE IMAGE FROM DISK
+    if existing.image_url:
+        parsed = urlparse(existing.image_url)
+        file_path = parsed.path.replace("/uploads/", "")
+        full_path = os.path.join("uploads", file_path)
+
+        if os.path.exists(full_path) and os.path.isfile(full_path):
+            os.remove(full_path)
+
+    # 🔥 DELETE FROM DB
+    await CampaignController.delete_campaign(campaign_id, db)
+
     return StandardResponse(
         status_code=status.HTTP_200_OK,
         message="Campaign Deleted Successfully",
-        result_data=result,
+        result_data={},
     )
