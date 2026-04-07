@@ -26,6 +26,10 @@ class UserUpdate(BaseModel):
     password: Optional[str] = Field(None, min_length=6, max_length=72)
 
 
+class ChangePasswordRequest(BaseModel):
+    new_password: str = Field(..., min_length=6, max_length=72)
+
+
 class UserResponse(BaseModel):
     id: str
     name: str

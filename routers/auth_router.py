@@ -9,6 +9,7 @@ from models import (
     UserLogin,
     UserResponse,
     StandardResponse,
+    ChangePasswordRequest,
 )
 from controller.auth_controller import AuthController
 
@@ -83,3 +84,22 @@ async def logout(body: RefreshRequest, db=Depends(get_db), _: dict = Depends(get
         message="Logout Successful",
         result_data=result
     )
+
+@router.post(
+    "/change-password",
+    response_model=StandardResponse[dict],
+    summary="Change user password",
+    status_code=status.HTTP_200_OK,
+    include_in_schema=False
+)
+async def change_password(data: ChangePasswordRequest, db=Depends(get_db), current_user: dict = Depends(get_current_user)):
+    """
+    Change the password for the current user.
+    """
+    result = await AuthController.change_password(data.new_password, str(current_user["_id"]), db)
+    return StandardResponse(
+        status_code=status.HTTP_200_OK,
+        message="Password Changed Successfully",
+        result_data=result
+    )
+

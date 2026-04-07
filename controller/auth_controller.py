@@ -2,12 +2,14 @@ from datetime import datetime, timezone
 from fastapi import HTTPException, status
 from auth.jwt import create_access_token, create_refresh_token
 from auth.password import hash_password, verify_password
+from bson import ObjectId
 from models import (
     AccessTokenResponse,
     TokenResponse,
     UserCreate,
     UserLogin,
     UserResponse,
+    ChangePasswordRequest,
 )
 from controller.token_controller import TokenController
 
@@ -92,3 +94,13 @@ class AuthController:
     async def logout(refresh_token: str, db):
         """Invalidate specific browse session via TokenController."""
         return await TokenController.revoke_refresh_token(refresh_token, db)
+
+    @staticmethod
+    async def change_password(new_password: str, user_id: str, db):
+        hashed_password = hash_password(new_password)
+        now = datetime.now(timezone.utc)
+        await db["users"].update_one(
+            {"_id": ObjectId(user_id)},
+            {"$set": {"password": hashed_password, "updated_at": now}}
+        )
+        return {"message": "Password changed successfully"}

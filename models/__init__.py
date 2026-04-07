@@ -1,4 +1,4 @@
-from models.user_model import UserCreate, UserLogin, UserUpdate, UserResponse, UserRole
+from models.user_model import UserCreate, UserLogin, UserUpdate, UserResponse, UserRole, ChangePasswordRequest
 from models.token_model import TokenResponse, AccessTokenResponse, RefreshRequest
 from models.base_model import StandardResponse
 __all__ = [
@@ -11,4 +11,5 @@ __all__ = [
     "TokenResponse",
     "AccessTokenResponse",
     "RefreshRequest",
+    "ChangePasswordRequest",
 ]
