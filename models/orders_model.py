@@ -6,10 +6,8 @@ from pydantic import BaseModel, Field
 
 class OrderStatus(str, Enum):
     PENDING = "Pending"
-    PREPARING = "Preparing"
-    READY = "Ready"
-    SERVED = "Served"
-    COMPLETED = "Completed"
+    SUCCESS = "Success"
+    FAILED = "Failed"
 
 
 class PaymentMethod(str, Enum):
