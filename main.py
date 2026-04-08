@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
@@ -74,6 +74,7 @@ app = FastAPI(
     lifespan=lifespan,
     redirect_slashes=False
 )
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 ALLOWED_ORIGINS = [
     "http://localhost:5173",
