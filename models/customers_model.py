@@ -16,7 +16,7 @@ class CustomerStatus(str, Enum):
 class CustomerCreate(BaseModel):
     """Payload the client sends when registering a new customer."""
     name: str = Field(..., min_length=2, max_length=100)
-    country_code: Optional[str] = Field(None)
+    country_code: Optional[str] = Field(default="+971")
     phone_number: str = Field(..., min_length=7, max_length=15, examples=["9876543210"])
     email: Optional[str] = None
     address: Optional[str] = Field(None)
@@ -53,6 +53,7 @@ class CustomerResponse(BaseModel):
     address: Optional[str] = None
     orders: List[PopulatedOrder] = []
     status: CustomerStatus
+    last_order_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, File, UploadFile, status, Query
 from auth.dependencies import get_current_user
 from db.database import get_db
 from models.orders_model import OrderCreate, OrderResponse, OrderUpdate, PaginatedOrderResponse
@@ -85,6 +85,11 @@ async def get_all_orders_paginated(
     )
 
 
+@router.get("/bulk_upload_file/status/{job_id}")
+async def get_bulk_upload_status(job_id: str, db=Depends(get_db)):
+    return await OrderController.get_bulk_upload_status(job_id, db)
+
+
 @router.get(
     "/{order_id}",
     response_model=StandardResponse[OrderResponse],
@@ -123,6 +128,15 @@ async def update_order(
         message="Order Updated Successfully",
         result_data=result,
     )
+
+
+@router.post("/bulk_upload_file", status_code=202)
+async def bulk_upload_orders(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    db=Depends(get_db),
+):
+    return await OrderController.bulk_upload_orders(background_tasks, file, db)
 
 
 @router.delete(

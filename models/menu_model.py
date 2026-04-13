@@ -2,7 +2,16 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, List, Optional
 from pydantic import BaseModel, HttpUrl, Field
+import re
 
+
+def _make_search_name(name: str) -> str:
+    if not name:
+        return ""
+    name = name.lower()
+    name = re.sub(r"[^\w\s]", " ", name)
+    name = re.sub(r"\s+", " ", name).strip()
+    return name
 
 class MenuItemType(str, Enum):
     VEG = "Veg"
@@ -26,6 +35,7 @@ class MenuItemCreate(BaseModel):
       image, offer
     """
     item_name: str = Field(...)
+    search_name: Optional[str] = None
     category: str = Field(...)
     description: Optional[str] = Field(None)
     base_price: float = Field(..., ge=0)
@@ -41,6 +51,7 @@ class MenuItemCreate(BaseModel):
 class MenuItemUpdate(BaseModel):
     """All fields optional — supports partial updates via PATCH."""
     item_name: Optional[str] = Field(None)
+    search_name: Optional[str] = None
     category: Optional[str] = Field(None)
     description: Optional[str] = Field(None)
     base_price: Optional[float] = Field(None, ge=0)
@@ -56,6 +67,7 @@ class MenuItemResponse(BaseModel):
     id: str
     item_no: str
     item_name: str
+    search_name: Optional[str] = None
     category: str
     description: Optional[str] = None
     base_price: float
@@ -181,6 +193,7 @@ class CSVMenuRow(BaseModel):
 
         return MenuItemCreate(
             item_name=name,
+            search_name=_make_search_name(name),
             category=category,
             description=_s(self.ItemDescription),
             base_price=base_price,
