@@ -16,51 +16,175 @@ from models.customers_model import (
     PopulatedOrder,
 )
 
-
 async def _to_response(doc: dict, db) -> CustomerResponse:
-    """
-    Convert a raw MongoDB document into a CustomerResponse.
-    Populates orders array — fetches each order and returns order_id + grand_total.
-    """
+    """Convert a single customer document to CustomerResponse."""
     populated_orders = []
-    for order_id_str in doc.get("orders", []):
+    order_ids = []
+    for oid in doc.get("orders", []):
         try:
-            order_doc = await db["orders"].find_one({"_id": ObjectId(order_id_str)})
-            if order_doc:
-                formatted_items = []
-                for item in order_doc.get("items", []):
-                    menu_doc = await db["menu_items"].find_one({"_id": ObjectId(item["menu_item"])})
-                    formatted_items.append({
-                        "menu_item_id": str(item.get("menu_item")),
-                        "item_name": menu_doc.get("item_name"),
-                        "price": item.get("price"),
-                        "quantity": item.get("quantity"),
-                        "sub_total": item.get("sub_total")
-                    })
+            if ObjectId.is_valid(str(oid)):
+                order_ids.append(ObjectId(str(oid)))
+        except Exception:
+            continue
 
-                populated_orders.append(PopulatedOrder(
-                    id=str(order_doc['_id']),
-                    order_id=order_doc.get("order_id"),
-                    grand_total=order_doc.get("grand_total"),
-                    items=formatted_items,
-                ))
+    if order_ids:
+        order_docs = await db["orders"].find(
+            {"_id": {"$in": order_ids}}
+        ).to_list(length=None)
+    else:
+        order_docs = []
+
+    for order_doc in order_docs:
+        try:
+            menu_ids = []
+            for item in order_doc.get("items", []):
+                raw_mid = item.get("menu_item")
+                if raw_mid and ObjectId.is_valid(str(raw_mid)):
+                    menu_ids.append(ObjectId(str(raw_mid)))
+
+            menu_map = {}
+            if menu_ids:
+                menu_docs = await db["menu_items"].find(
+                    {"_id": {"$in": menu_ids}}
+                ).to_list(length=None)
+                menu_map = {str(m["_id"]): m for m in menu_docs}
+
+            formatted_items = []
+            for item in order_doc.get("items", []):
+                raw_mid = item.get("menu_item")
+                menu_doc = menu_map.get(str(raw_mid)) if raw_mid else None
+
+                formatted_items.append({
+                    "menu_item_id": str(raw_mid) if raw_mid else None,
+                    "item_name":    menu_doc.get("item_name") if menu_doc else item.get("item_name"),
+                    "price":        item.get("price"),
+                    "quantity":     item.get("quantity"),
+                    "sub_total":    item.get("sub_total"),
+                })
+
+            populated_orders.append(PopulatedOrder(
+                id=str(order_doc["_id"]),
+                order_id=order_doc.get("order_id"),
+                grand_total=order_doc.get("grand_total"),
+                items=formatted_items,
+            ))
+
         except Exception as e:
-            print(f"Error populating customer order {order_id_str}: {e}")
+            print(f"Error populating order {order_doc.get('_id')}: {e}")
             continue
 
     return CustomerResponse(
         id=str(doc["_id"]),
         customer_id=doc.get("customer_id") or str(doc.get("_id", "")),
-        name=doc["name"],
-        country_code=doc["country_code"],
-        phone_number=doc["phone_number"],
+        name=doc.get("name", "Unknown"),
+        country_code=doc.get("country_code"),
+        phone_number=doc.get("phone_number", ""),
         email=doc.get("email"),
-        address=doc["address"],
+        address=doc.get("address"),
         orders=populated_orders,
         status=doc.get("status", "new").lower(),
-        created_at=doc["created_at"],
-        updated_at=doc["updated_at"],
+        created_at=doc.get("created_at", datetime.now(timezone.utc)),
+        updated_at=doc.get("updated_at", datetime.now(timezone.utc)),
     )
+
+
+async def _build_responses_optimized(customers: list[dict], db) -> List[CustomerResponse]:
+    """
+    Optimized batch conversion of multiple customers to responses.
+    Batches all order and menu item queries instead of individual lookups per customer.
+    """
+    # Step 1: Collect all order IDs from all customers
+    all_order_ids = set()
+    customer_order_map = {}  # Maps customer index to their order IDs
+    
+    for idx, customer in enumerate(customers):
+        customer_orders = []
+        for oid in customer.get("orders", []):
+            try:
+                if ObjectId.is_valid(str(oid)):
+                    oid_obj = ObjectId(str(oid))
+                    all_order_ids.add(oid_obj)
+                    customer_orders.append(oid_obj)
+            except Exception:
+                continue
+        customer_order_map[idx] = customer_orders
+    
+    # Step 2: Fetch all orders in one query
+    all_order_ids_list = list(all_order_ids)
+    order_map = {}
+    if all_order_ids_list:
+        order_docs = await db["orders"].find(
+            {"_id": {"$in": all_order_ids_list}}
+        ).to_list(length=None)
+        order_map = {str(doc["_id"]): doc for doc in order_docs}
+    
+    # Step 3: Collect all menu IDs from all orders
+    all_menu_ids = set()
+    for order_doc in order_map.values():
+        for item in order_doc.get("items", []):
+            raw_mid = item.get("menu_item")
+            if raw_mid and ObjectId.is_valid(str(raw_mid)):
+                all_menu_ids.add(ObjectId(str(raw_mid)))
+    
+    # Step 4: Fetch all menu items in one query
+    menu_map = {}
+    if all_menu_ids:
+        menu_docs = await db["menu_items"].find(
+            {"_id": {"$in": list(all_menu_ids)}}
+        ).to_list(length=None)
+        menu_map = {str(m["_id"]): m for m in menu_docs}
+    
+    # Step 5: Build responses in memory
+    responses = []
+    for idx, customer_doc in enumerate(customers):
+        populated_orders = []
+        
+        for order_id in customer_order_map.get(idx, []):
+            try:
+                order_doc = order_map.get(str(order_id))
+                if not order_doc:
+                    continue
+                
+                formatted_items = []
+                for item in order_doc.get("items", []):
+                    raw_mid = item.get("menu_item")
+                    menu_doc = menu_map.get(str(raw_mid)) if raw_mid else None
+                    
+                    formatted_items.append({
+                        "menu_item_id": str(raw_mid) if raw_mid else None,
+                        "item_name": menu_doc.get("item_name") if menu_doc else item.get("item_name"),
+                        "price": item.get("price"),
+                        "quantity": item.get("quantity"),
+                        "sub_total": item.get("sub_total"),
+                    })
+                
+                populated_orders.append(PopulatedOrder(
+                    id=str(order_doc["_id"]),
+                    order_id=order_doc.get("order_id"),
+                    grand_total=order_doc.get("grand_total"),
+                    items=formatted_items,
+                ))
+                
+            except Exception as e:
+                print(f"Error populating order {order_id}: {e}")
+                continue
+        
+        response = CustomerResponse(
+            id=str(customer_doc["_id"]),
+            customer_id=customer_doc.get("customer_id") or str(customer_doc.get("_id", "")),
+            name=customer_doc.get("name", "Unknown"),
+            country_code=customer_doc.get("country_code"),
+            phone_number=customer_doc.get("phone_number", ""),
+            email=customer_doc.get("email"),
+            address=customer_doc.get("address"),
+            orders=populated_orders,
+            status=customer_doc.get("status", "new").lower(),
+            created_at=customer_doc.get("created_at", datetime.now(timezone.utc)),
+            updated_at=customer_doc.get("updated_at", datetime.now(timezone.utc)),
+        )
+        responses.append(response)
+    
+    return responses
 
 
 def _validate_object_id(customer_id: str) -> None:
@@ -127,26 +251,30 @@ class CustomerController:
 
     @staticmethod
     async def get_all_customers_paginated(db, page: int = 1, limit: int = 10) -> PaginatedCustomerResponse:
-        """Return a paginated list of customers."""
+        """Return a paginated list of customers with optimized batch queries."""
         skip = (page - 1) * limit
 
         total_results = await db["customers"].count_documents({})
         customers = await db["customers"].find().skip(skip).limit(limit).sort('created_at', -1).to_list(length=None)
         total_pages = math.ceil(total_results / limit)
 
+        # Use optimized batch processing for multiple customers
+        data = await _build_responses_optimized(customers, db)
+
         return PaginatedCustomerResponse(
             total_results=total_results,
             page=page,
             limit=limit,
             total_pages=total_pages,
-            data=[await _to_response(c, db) for c in customers],
+            data=data,
         )
 
     @staticmethod
     async def get_all_customers(db) -> List[CustomerResponse]:
-        """Return all customers sorted by created_at."""
+        """Return all customers sorted by created_at with optimized batch queries."""
         customers = await db["customers"].find().sort("created_at", -1).to_list(length=None)
-        return [await _to_response(c, db) for c in customers]
+        # Use optimized batch processing for all customers
+        return await _build_responses_optimized(customers, db)
 
 
     @staticmethod

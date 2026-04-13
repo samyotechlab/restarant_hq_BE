@@ -31,6 +31,7 @@ def _validate_object_id(oid: str, label: str = "ID") -> None:
 
 
 async def _populate_order(doc: dict, db) -> OrderResponse:
+    """Convert a single order document to OrderResponse."""
     populated_customer = None
     raw_customer = doc.get("customer")
     if raw_customer:
@@ -79,7 +80,7 @@ async def _populate_order(doc: dict, db) -> OrderResponse:
 
     return OrderResponse(
         id=str(doc["_id"]),
-        order_id=doc["order_id"],
+        order_id=doc.get("order_id", ""),
         invoice_no=doc.get("invoice_no"),
         order_date=doc.get("order_date"),
         order_timestamp=doc.get("order_timestamp"),
@@ -91,7 +92,7 @@ async def _populate_order(doc: dict, db) -> OrderResponse:
         assign_to=doc.get("assign_to"),
         customer=populated_customer,
         items=populated_items,
-        status=doc["status"],
+        status=doc.get("status", "Pending"),
         sub_total=doc.get("sub_total"),
         tax=doc.get("tax"),
         discount=doc.get("discount"),
@@ -100,11 +101,128 @@ async def _populate_order(doc: dict, db) -> OrderResponse:
         non_taxable=doc.get("non_taxable"),
         gst=doc.get("gst"),
         notes=doc.get("notes"),
-        payment_method=doc["payment_method"],
-        is_paid=doc["is_paid"],
-        created_at=doc["created_at"],
-        updated_at=doc["updated_at"],
+        payment_method=doc.get("payment_method", "Pending"),
+        is_paid=doc.get("is_paid", False),
+        created_at=doc.get("created_at", datetime.now(timezone.utc)),
+        updated_at=doc.get("updated_at", datetime.now(timezone.utc)),
     )
+
+
+async def _populate_orders_optimized(orders: list[dict], db) -> list[OrderResponse]:
+    """
+    Optimized batch conversion of multiple orders to responses.
+    Batches all customer and menu item queries instead of individual lookups per order.
+    """
+    # Step 1: Collect all customer IDs and menu item IDs
+    customer_ids = set()
+    menu_ids = set()
+    
+    for order in orders:
+        raw_customer = order.get("customer")
+        if raw_customer:
+            try:
+                if ObjectId.is_valid(str(raw_customer)):
+                    customer_ids.add(ObjectId(str(raw_customer)))
+            except Exception:
+                pass
+        
+        for item in order.get("items", []):
+            raw_menu_id = item.get("menu_item")
+            if raw_menu_id and ObjectId.is_valid(str(raw_menu_id)):
+                try:
+                    menu_ids.add(ObjectId(str(raw_menu_id)))
+                except Exception:
+                    pass
+    
+    # Step 2: Fetch all customers in one query
+    customer_map = {}
+    if customer_ids:
+        customer_docs = await db["customers"].find(
+            {"_id": {"$in": list(customer_ids)}}
+        ).to_list(length=None)
+        customer_map = {str(doc["_id"]): doc for doc in customer_docs}
+    
+    # Step 3: Fetch all menu items in one query
+    menu_map = {}
+    if menu_ids:
+        menu_docs = await db["menu_items"].find(
+            {"_id": {"$in": list(menu_ids)}}
+        ).to_list(length=None)
+        menu_map = {str(doc["_id"]): doc for doc in menu_docs}
+    
+    # Step 4: Build responses in memory
+    responses = []
+    for doc in orders:
+        # Populate customer
+        populated_customer = None
+        raw_customer = doc.get("customer")
+        if raw_customer:
+            try:
+                customer_doc = customer_map.get(str(raw_customer))
+                if customer_doc:
+                    populated_customer = PopulatedCustomer(
+                        customer_id=str(customer_doc["_id"]),
+                        name=customer_doc.get("name"),
+                        country_code=customer_doc.get("country_code"),
+                        phone_number=customer_doc.get("phone_number"),
+                        address=customer_doc.get("address"),
+                    )
+            except Exception:
+                pass
+        
+        # Populate items
+        populated_items = []
+        for item in doc.get("items", []):
+            raw_menu_id = item.get("menu_item")
+            menu_doc = menu_map.get(str(raw_menu_id)) if raw_menu_id else None
+            
+            populated_items.append(OrderItemResponse(
+                menu_item_id=str(raw_menu_id) if raw_menu_id else None,
+                item_no=menu_doc.get("item_no") if menu_doc else None,
+                item_name=menu_doc.get("item_name") if menu_doc else item.get("item_name"),
+                image=menu_doc.get("image") if menu_doc else None,
+                category=menu_doc.get("category") if menu_doc else item.get("category"),
+                base_price=menu_doc.get("base_price") if menu_doc else None,
+                online_price=menu_doc.get("online_price") if menu_doc else None,
+                dietary=menu_doc.get("dietary") if menu_doc else None,
+                available=menu_doc.get("available") if menu_doc else None,
+                price=item.get("price"),
+                quantity=item.get("quantity"),
+                sub_total=item.get("sub_total"),
+                final_total=item.get("final_total"),
+            ))
+        
+        response = OrderResponse(
+            id=str(doc["_id"]),
+            order_id=doc.get("order_id", ""),
+            invoice_no=doc.get("invoice_no"),
+            order_date=doc.get("order_date"),
+            order_timestamp=doc.get("order_timestamp"),
+            order_type=doc.get("order_type"),
+            area=doc.get("area"),
+            table_no=doc.get("table_no"),
+            covers=doc.get("covers"),
+            server_name=doc.get("server_name"),
+            assign_to=doc.get("assign_to"),
+            customer=populated_customer,
+            items=populated_items,
+            status=doc.get("status", "Pending"),
+            sub_total=doc.get("sub_total"),
+            tax=doc.get("tax"),
+            discount=doc.get("discount"),
+            grand_total=doc.get("grand_total"),
+            vat_amount=doc.get("vat_amount"),
+            non_taxable=doc.get("non_taxable"),
+            gst=doc.get("gst"),
+            notes=doc.get("notes"),
+            payment_method=doc.get("payment_method", "Pending"),
+            is_paid=doc.get("is_paid", False),
+            created_at=doc.get("created_at", datetime.now(timezone.utc)),
+            updated_at=doc.get("updated_at", datetime.now(timezone.utc)),
+        )
+        responses.append(response)
+    
+    return responses
 
 
 class OrderController:
@@ -181,25 +299,28 @@ class OrderController:
 
     @staticmethod
     async def get_all_orders(db) -> list[OrderResponse]:
-        """Return all orders — unpaginated, unauthenticated."""
+        """Return all orders — unpaginated, unauthenticated with optimized batch queries."""
         orders = await db["orders"].find().sort('created_at', -1).to_list(length=None)
-        return [await _populate_order(o, db) for o in orders]
+        return await _populate_orders_optimized(orders, db)
 
     @staticmethod
     async def get_all_orders_paginated(db, page: int = 1, limit: int = 10) -> PaginatedOrderResponse:
-        """Return a paginated list of orders."""
+        """Return a paginated list of orders with optimized batch queries."""
         skip = (page - 1) * limit
 
         total_results = await db["orders"].count_documents({})
         orders = await db["orders"].find().skip(skip).limit(limit).sort('created_at', -1).to_list(length=None)
         total_pages = math.ceil(total_results / limit) if total_results else 1
 
+        # Use optimized batch processing for multiple orders
+        data = await _populate_orders_optimized(orders, db)
+
         return PaginatedOrderResponse(
             total_results=total_results,
             page=page,
             limit=limit,
             total_pages=total_pages,
-            data=[await _populate_order(o, db) for o in orders],
+            data=data,
         )
 
     @staticmethod
