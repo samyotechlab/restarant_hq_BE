@@ -50,14 +50,14 @@ async def _to_response(doc: dict, db) -> CustomerResponse:
 
     return CustomerResponse(
         id=str(doc["_id"]),
-        customer_id=doc["customer_id"],
+        customer_id=doc.get("customer_id") or str(doc.get("_id", "")),
         name=doc["name"],
         country_code=doc["country_code"],
         phone_number=doc["phone_number"],
         email=doc.get("email"),
         address=doc["address"],
         orders=populated_orders,
-        status=doc["status"],
+        status=doc.get("status", "new").lower(),
         created_at=doc["created_at"],
         updated_at=doc["updated_at"],
     )

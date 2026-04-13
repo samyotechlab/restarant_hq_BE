@@ -12,6 +12,7 @@ from bson import ObjectId
 from fastapi import HTTPException, UploadFile, status
 from openpyxl import load_workbook
 from config.settings import settings
+import re
 from models.menu_model import (
     BulkMenuUploadResponse,
     BulkMenuUploadResult,
@@ -26,6 +27,13 @@ from models.menu_model import (
 
 N8N_WEBHOOK_URL = settings.N8N_CATALOG_SYNC_WEBHOOK
 
+def _make_search_name(name: str) -> str:
+    if not name:
+        return ""
+    name = name.lower()
+    name = re.sub(r"[^\w\s]", " ", name)
+    name = re.sub(r"\s+", " ", name).strip()
+    return name
 
 def _to_response(doc: dict) -> MenuItemResponse:
     base_price = doc.get("base_price") or doc.get("price") or 0.0
@@ -35,6 +43,7 @@ def _to_response(doc: dict) -> MenuItemResponse:
         id=str(doc["_id"]),
         item_no=doc["item_no"],
         item_name=doc["item_name"],
+        search_name=doc.get("search_name"),
         category=doc["category"],
         description=doc.get("description"),
         base_price=base_price,
@@ -52,6 +61,7 @@ def _build_insert_doc(item: MenuItemCreate, now: datetime) -> dict:
     return {
         "item_no": f"ITEM-{uuid4().hex[:8].upper()}",
         "item_name": item.item_name,
+        "search_name":  _make_search_name(item.item_name),
         "category": item.category,
         "description": item.description,
         "base_price": item.base_price,
@@ -68,6 +78,7 @@ def _build_insert_doc(item: MenuItemCreate, now: datetime) -> dict:
 def _build_update_fields(item: MenuItemCreate, now: datetime) -> dict:
     return {
         "item_name": item.item_name,
+        "search_name": _make_search_name(item.item_name),
         "category": item.category,
         "description": item.description,
         "base_price": item.base_price,
@@ -213,6 +224,8 @@ class MenuController:
         update_fields = data.model_dump(exclude_none=True)
         if not update_fields:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields provided to update.")
+        if "item_name" in update_fields:
+            update_fields["search_name"] = _make_search_name(update_fields["item_name"])
         if "image" in update_fields:
             update_fields["image"] = str(update_fields["image"])
         update_fields["updated_at"] = datetime.now(timezone.utc)
