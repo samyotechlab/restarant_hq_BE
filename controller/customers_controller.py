@@ -73,6 +73,12 @@ async def _to_response(doc: dict, db) -> CustomerResponse:
             print(f"Error populating order {order_doc.get('_id')}: {e}")
             continue
 
+    order_docs_sorted = sorted(
+        order_docs,
+        key=lambda o: o.get("order_date") or o.get("created_at") or datetime.min.replace(tzinfo=timezone.utc),  # ← order_date
+        reverse=True
+    )
+    last_order_at = order_docs_sorted[0].get("order_date") if order_docs_sorted else None
     return CustomerResponse(
         id=str(doc["_id"]),
         customer_id=doc.get("customer_id") or str(doc.get("_id", "")),
@@ -83,6 +89,7 @@ async def _to_response(doc: dict, db) -> CustomerResponse:
         address=doc.get("address"),
         orders=populated_orders,
         status=doc.get("status", "new").lower(),
+        last_order_at=last_order_at,
         created_at=doc.get("created_at", datetime.now(timezone.utc)),
         updated_at=doc.get("updated_at", datetime.now(timezone.utc)),
     )
@@ -168,7 +175,18 @@ async def _build_responses_optimized(customers: list[dict], db) -> List[Customer
             except Exception as e:
                 print(f"Error populating order {order_id}: {e}")
                 continue
-        
+        customer_order_docs = [
+            order_map[str(oid)]
+            for oid in customer_order_map.get(idx, [])
+            if str(oid) in order_map
+        ]
+        last_order_at = None
+        if customer_order_docs:
+            latest = max(
+                customer_order_docs,
+                key=lambda o: o.get("order_date") or o.get("created_at") or datetime.min.replace(tzinfo=timezone.utc)
+            )
+            last_order_at = latest.get("order_date") or latest.get("created_at")
         response = CustomerResponse(
             id=str(customer_doc["_id"]),
             customer_id=customer_doc.get("customer_id") or str(customer_doc.get("_id", "")),
@@ -179,6 +197,7 @@ async def _build_responses_optimized(customers: list[dict], db) -> List[Customer
             address=customer_doc.get("address"),
             orders=populated_orders,
             status=customer_doc.get("status", "new").lower(),
+            last_order_at=last_order_at,
             created_at=customer_doc.get("created_at", datetime.now(timezone.utc)),
             updated_at=customer_doc.get("updated_at", datetime.now(timezone.utc)),
         )

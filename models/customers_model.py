@@ -53,6 +53,7 @@ class CustomerResponse(BaseModel):
     address: Optional[str] = None
     orders: List[PopulatedOrder] = []
     status: CustomerStatus
+    last_order_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 
