@@ -17,7 +17,7 @@ async def connect_db():
     
     # Seed admin user on startup
     await seed_admin_user(db)
-    await seed_services(db) 
+    # await seed_services(db)
 
 
 async def close_db():
