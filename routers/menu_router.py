@@ -102,7 +102,7 @@ async def bulk_upload_menu_items(
 )
 async def get_all_menu_items_paginated(
     page: int = Query(default=1, ge=1, description="Page number"),
-    limit: int = Query(default=10, ge=1, le=100, description="Items per page"),
+    limit: int = Query(default=10, ge=1, le=1000, description="Items per page"),
     db=Depends(get_db),
     _: dict = Depends(get_current_user),
 ):

@@ -10,13 +10,6 @@ class OrderStatus(str, Enum):
     FAILED  = "Failed"
 
 
-class PaymentMethod(str, Enum):
-    CASH    = "Cash"
-    CARD    = "Card"
-    ONLINE  = "Online"
-    PENDING = "Pending"
-
-
 class BulkJobStatus(str, Enum):
     QUEUED     = "queued"
     PROCESSING = "processing"
@@ -37,6 +30,7 @@ class OrderItem(BaseModel):
     price:       Optional[float] = None
     quantity:    Optional[int]   = Field(None, gt=0)
     sub_total:   Optional[float] = None
+    final_total: Optional[float] = None
 
 
 class OrderItemBulk(BaseModel):
@@ -105,13 +99,21 @@ class OrderCreate(BaseModel):
     """All fields optional — frontend handles required validation."""
     customer:       Optional[str]             = None
     items:          Optional[List[OrderItem]] = []
+    order_date: Optional[datetime] = None
+    order_type: Optional[str] = None
+    area: Optional[str] = None
+    table_no: Optional[str] = None
+    covers: Optional[float] = None
+    server_name: Optional[str] = None
+    assign_to: Optional[str] = None
+    invoice_no: Optional[str] = None
     status:         Optional[OrderStatus]     = Field(default=OrderStatus.PENDING)
     sub_total:      Optional[float]           = None
     tax:            Optional[float]           = None
     discount:       Optional[float]           = None
     grand_total:    Optional[float]           = None
     notes:          Optional[str]             = None
-    payment_method: Optional[PaymentMethod]   = Field(default=PaymentMethod.PENDING)
+    payment_method: Optional[str] = Field(default="Pending")
     is_paid:        Optional[bool]            = Field(default=False)
 
 
@@ -119,13 +121,20 @@ class OrderUpdate(BaseModel):
     """All fields optional — supports partial updates."""
     customer:       Optional[str]             = None
     items:          Optional[List[OrderItem]] = None
+    order_date: Optional[datetime] = None
+    order_type: Optional[str] = None
+    area: Optional[str] = None
+    table_no: Optional[str] = None
+    covers: Optional[float] = None
+    server_name: Optional[str] = None
+    assign_to: Optional[str] = None
     status:         Optional[OrderStatus]     = None
     sub_total:      Optional[float]           = None
     tax:            Optional[float]           = None
     discount:       Optional[float]           = None
     grand_total:    Optional[float]           = None
     notes:          Optional[str]             = None
-    payment_method: Optional[PaymentMethod]   = None
+    payment_method: Optional[str]   = None
     is_paid:        Optional[bool]            = None
 
 
@@ -159,7 +168,7 @@ class OrderResponse(BaseModel):
     vat_amount:      Optional[float] = None
     non_taxable:     Optional[float] = None
     gst:             Optional[str]   = None
-    payment_method:  PaymentMethod
+    payment_method:  Optional[str] = None
     status:          OrderStatus
     is_paid:         bool
     notes:           Optional[str]  = None

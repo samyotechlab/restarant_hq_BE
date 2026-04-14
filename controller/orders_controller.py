@@ -12,7 +12,6 @@ from models.orders_model import (
     OrderResponse,
     OrderUpdate,
     OrderStatus,
-    PaymentMethod,
     OrderItemResponse,
     PopulatedCustomer,
     PaginatedOrderResponse,
@@ -253,11 +252,21 @@ class OrderController:
                 "price": item.price,
                 "quantity": item.quantity,
                 "sub_total": item.sub_total,
+                "final_total": item.final_total,
             })
 
         now = datetime.now(timezone.utc)
         order_doc = {
-            "order_id": f"ORD-{uuid4().hex[:8].upper()}",      
+            "order_id": f"ORD-{uuid4().hex[:8].upper()}",
+            "invoice_no": None,
+            "order_date": data.order_date or now,
+            "order_timestamp": None,
+            "order_type": data.order_type,
+            "area": data.area,
+            "table_no": data.table_no,
+            "covers": data.covers,
+            "server_name": data.server_name,
+            "assign_to": data.assign_to,        
             "customer": data.customer,
             "items": items_to_store,
             "status": data.status.value if data.status else OrderStatus.PENDING.value,
@@ -266,7 +275,7 @@ class OrderController:
             "discount": data.discount,
             "grand_total": data.grand_total,
             "notes": data.notes,
-            "payment_method": data.payment_method.value if data.payment_method else PaymentMethod.PENDING.value,
+            "payment_method": data.payment_method,
             "is_paid": data.is_paid if data.is_paid is not None else False,
             "created_at": now,
             "updated_at": now,
@@ -373,6 +382,7 @@ class OrderController:
                     "price": item.get("price"),
                     "quantity": item.get("quantity"),
                     "sub_total": item.get("sub_total"),
+                    "final_total": item.get("final_total"),
                 })
             update_fields["items"] = items_to_store
 

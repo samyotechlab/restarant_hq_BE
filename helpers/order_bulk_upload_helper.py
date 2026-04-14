@@ -538,10 +538,7 @@ async def _process_bulk_upload_job(job_id: str, file_path: str, db):
                     agg_grand    += final_total
                     agg_vat      += vat_amount
 
-                raw_pay = _safe_str(first.get("Payment Type")) or "Pending"
-                payment = {"cash": "Cash", "card": "Card", "online": "Online"}.get(
-                    raw_pay.lower(), "Pending"
-                )
+                payment = _safe_str(first.get("Payment Type")) or "Due Payment"
 
                 raw_status = _safe_str(first.get("Status")) or "Pending"
                 ord_status = {"success": "Success", "failed": "Failed", "pending": "Pending"}.get(
@@ -595,7 +592,32 @@ async def _process_bulk_upload_job(job_id: str, file_path: str, db):
                     {"invoice_no": invoice_no}, {"_id": 1}
                 )
                 if existing_order:
-                    orders_skipped += 1
+                    await db["orders"].update_one(
+                        {"invoice_no": invoice_no},
+                        {"$set": {
+                            "payment_method":  payment,
+                            "status":          ord_status,
+                            "is_paid":         ord_status == "Success",
+                            "order_date":      order_date,
+                            "order_timestamp": order_timestamp,
+                            "order_type":      _safe_str(first.get("Order Type")),
+                            "area":            _safe_str(first.get("Area")),
+                            "table_no":        _safe_str(first.get("Table No.")),
+                            "covers":          _safe_float(first.get("Covers")),
+                            "server_name":     _safe_str(first.get("Server Name")),
+                            "assign_to":       _safe_str(first.get("Assign To")),
+                            "sub_total":       round(agg_sub, 2),
+                            "discount":        round(agg_discount, 2),
+                            "tax":             round(agg_tax, 2),
+                            "grand_total":     round(agg_grand, 2),
+                            "vat_amount":      round(agg_vat, 2),
+                            "non_taxable":     _safe_float(first.get("Non Taxable")),
+                            "gst":             _safe_str(first.get("GST")),
+                            "items":           order_items,
+                            "updated_at":      datetime.now(timezone.utc),
+                        }}
+                    )
+                    orders_skipped += 1 
                 else:
                     ins_order = await db["orders"].insert_one(order_doc)
                     await db["customers"].update_one(

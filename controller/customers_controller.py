@@ -49,18 +49,27 @@ async def _to_response(doc: dict, db) -> CustomerResponse:
                 ).to_list(length=None)
                 menu_map = {str(m["_id"]): m for m in menu_docs}
 
+            from models.orders_model import OrderItemResponse
             formatted_items = []
             for item in order_doc.get("items", []):
                 raw_mid = item.get("menu_item")
                 menu_doc = menu_map.get(str(raw_mid)) if raw_mid else None
 
-                formatted_items.append({
-                    "menu_item_id": str(raw_mid) if raw_mid else None,
-                    "item_name":    menu_doc.get("item_name") if menu_doc else item.get("item_name"),
-                    "price":        item.get("price"),
-                    "quantity":     item.get("quantity"),
-                    "sub_total":    item.get("sub_total"),
-                })
+                formatted_items.append(OrderItemResponse(
+                    menu_item_id=str(raw_mid) if raw_mid else None,
+                    item_no=menu_doc.get("item_no") if menu_doc else None,
+                    item_name=menu_doc.get("item_name") if menu_doc else item.get("item_name"),
+                    image=menu_doc.get("image") if menu_doc else None,
+                    category=menu_doc.get("category") if menu_doc else item.get("category"),
+                    base_price=menu_doc.get("base_price") if menu_doc else None,
+                    online_price=menu_doc.get("online_price") if menu_doc else None,
+                    dietary=menu_doc.get("dietary") if menu_doc else None,
+                    available=menu_doc.get("available") if menu_doc else None,
+                    price=item.get("price"),
+                    quantity=item.get("quantity"),
+                    sub_total=item.get("sub_total"),
+                    final_total=item.get("final_total"),
+                ))
 
             populated_orders.append(PopulatedOrder(
                 id=str(order_doc["_id"]),
@@ -152,18 +161,27 @@ async def _build_responses_optimized(customers: list[dict], db) -> List[Customer
                 if not order_doc:
                     continue
                 
+                from models.orders_model import OrderItemResponse
                 formatted_items = []
                 for item in order_doc.get("items", []):
                     raw_mid = item.get("menu_item")
                     menu_doc = menu_map.get(str(raw_mid)) if raw_mid else None
                     
-                    formatted_items.append({
-                        "menu_item_id": str(raw_mid) if raw_mid else None,
-                        "item_name": menu_doc.get("item_name") if menu_doc else item.get("item_name"),
-                        "price": item.get("price"),
-                        "quantity": item.get("quantity"),
-                        "sub_total": item.get("sub_total"),
-                    })
+                    formatted_items.append(OrderItemResponse(
+                        menu_item_id=str(raw_mid) if raw_mid else None,
+                        item_no=menu_doc.get("item_no") if menu_doc else None,
+                        item_name=menu_doc.get("item_name") if menu_doc else item.get("item_name"),
+                        image=menu_doc.get("image") if menu_doc else None,
+                        category=menu_doc.get("category") if menu_doc else item.get("category"),
+                        base_price=menu_doc.get("base_price") if menu_doc else None,
+                        online_price=menu_doc.get("online_price") if menu_doc else None,
+                        dietary=menu_doc.get("dietary") if menu_doc else None,
+                        available=menu_doc.get("available") if menu_doc else None,
+                        price=item.get("price"),
+                        quantity=item.get("quantity"),
+                        sub_total=item.get("sub_total"),
+                        final_total=item.get("final_total"),
+                    ))
                 
                 populated_orders.append(PopulatedOrder(
                     id=str(order_doc["_id"]),
