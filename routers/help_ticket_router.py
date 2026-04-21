@@ -19,6 +19,7 @@ router = APIRouter(prefix="/help-tickets", tags=["Help Tickets"])
     response_model=StandardResponse[HelpTicketResponse],
     status_code=status.HTTP_201_CREATED,
     summary="Create a new help ticket",
+    include_in_schema=False
 )
 async def create_ticket(
     data: HelpTicketCreate,
@@ -38,6 +39,7 @@ async def create_ticket(
     "/fetch_all",
     response_model=StandardResponse[List[HelpTicketResponse]],
     summary="Get all help tickets unpaginated",
+    include_in_schema=False
 )
 async def fetch_all_tickets(
     db=Depends(get_db),

@@ -43,6 +43,7 @@ async def create_menu_item(
     response_model=StandardResponse[dict],
     status_code=status.HTTP_200_OK,
     summary="Bulk upload menu items from CSV or Excel file",
+    include_in_schema=False
 )
 async def bulk_upload_menu_items_file(
     file: UploadFile = File(...),
@@ -126,6 +127,20 @@ async def get_all_items(db=Depends(get_db)):
     return StandardResponse(
         status_code=status.HTTP_200_OK,
         message="Menu Items Fetched Successfully",
+        result_data=result
+    )
+
+
+@router.get(
+    "/categorized",
+    response_model=StandardResponse[dict],
+    summary="Get available menu items grouped by category (limited fields)",
+)
+async def get_categorized_menu_items(db=Depends(get_db)):
+    result = await MenuController.get_limit_fields(db)
+    return StandardResponse(
+        status_code=status.HTTP_200_OK,
+        message="Categorized Menu Items Fetched Successfully",
         result_data=result
     )
 
