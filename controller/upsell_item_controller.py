@@ -1,10 +1,9 @@
 from datetime import datetime, timezone
 import math
-
+from uuid import uuid4
 from bson import ObjectId
 from fastapi import HTTPException, status
-
-from models.item_offer_model import ItemOfferCreate, ItemOfferResponse, ItemOfferUpdate, PaginatedItemOfferResponse, PopulateMenuItemOffer
+from models.upsell_item_model import PaginatedUpsellItemResponse, PopulateMenuItemOffer, UpsellItemCreate, UpsellItemResponse, UpsellItemUpdate
 
 
 def _validate_object_id(oid: str, label: str = "ID") -> None:
@@ -15,7 +14,7 @@ def _validate_object_id(oid: str, label: str = "ID") -> None:
             detail=f"'{oid}' is not a valid {label}.",
         )
 
-async def _to_response(item: dict, db) -> ItemOfferResponse:
+async def _to_response(item: dict, db) -> UpsellItemResponse:
   populate_item = None
   if item.get('item'):
     try:
@@ -34,41 +33,45 @@ async def _to_response(item: dict, db) -> ItemOfferResponse:
     except Exception:
       populate_item = None
   
-  return ItemOfferResponse(
+  return UpsellItemResponse(
     id=str(item["_id"]),
     item=populate_item,
-    base_price=item["base_price"],
+    original_price=item["original_price"],
     offer_price=item["offer_price"],
     offer_percentage=item["offer_percentage"],
+    available=item['available'],
     created_at=item['created_at'],
     updated_at=item['updated_at']
   )
 
 
-class ItemOfferController:
+class UpsellItemController:
   @staticmethod
-  async def createItemOffer(data: ItemOfferCreate, db) -> ItemOfferResponse:
+  async def create_upsell_item(data: UpsellItemCreate, db) -> UpsellItemResponse:
     _validate_object_id(data.item, "Menu Item ID")
     now = datetime.now(timezone.utc)
     item_doc = {
       "item": ObjectId(data.item),
-      "base_price": data.base_price,
+      "upsell_item_id": f"UPSELL-{uuid4().hex[:8].upper()}",
+      "original_price": data.original_price,
       "offer_price": data.offer_price,
       "offer_percentage": data.offer_percentage,
+      "available": data.available,
       "created_at": now,
       "updated_at": now,
     }
-    result = await db['item_offer'].insert_one(item_doc)
+    print(item_doc)
+    result = await db['upsell_items'].insert_one(item_doc)
     item_doc['_id'] = result.inserted_id
 
     return await _to_response(item_doc, db)
   
   @staticmethod
-  async def get_all_item_offer_paginated(db, page:int = 1, limit:int=10) -> PaginatedItemOfferResponse:
+  async def get_all_upsell_item_paginated(db, page:int = 1, limit:int=10) -> PaginatedUpsellItemResponse:
     skip = (page - 1) * limit
-    total = await db['item_offer'].count_documents({})
-    item_offer = await db['item_offer'].find().skip(skip).limit(limit).to_list(length=None)
-    return PaginatedItemOfferResponse(
+    total = await db['upsell_items'].count_documents({})
+    item_offer = await db['upsell_items'].find().skip(skip).limit(limit).to_list(length=None)
+    return PaginatedUpsellItemResponse(
       total_results=total,
       limit=limit,
       page=page,
@@ -77,23 +80,23 @@ class ItemOfferController:
     )
   
   @staticmethod
-  async def get_item_by_id(offer_id: str, db) -> ItemOfferResponse:
+  async def get_item_by_id(offer_id: str, db) -> UpsellItemResponse:
       _validate_object_id(offer_id)
-      doc = await db["item_offer"].find_one({"_id": ObjectId(offer_id)})
+      doc = await db["upsell_items"].find_one({"_id": ObjectId(offer_id)})
       if not doc:
           raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu item not found.")
       return await _to_response(doc, db)
   
   @staticmethod
   async def get_all(db):
-    item_offers = await db['item_offer'].find().sort('created_at', -1).to_list(length=None)
-    return item_offers
+    item_offers = await db['upsell_items'].find().sort('created_at', -1).to_list(length=None)
+    return [await _to_response(u, db) for u in item_offers]
   
   @staticmethod
-  async def update_item_offer(offer_id: str, data: ItemOfferUpdate, db) -> ItemOfferResponse:
+  async def update_upsell_item(offer_id: str, data: UpsellItemUpdate, db) -> UpsellItemResponse:
     _validate_object_id(offer_id, "Item Offer ID")
 
-    existing_offer = await db['item_offer'].find_one({"_id": ObjectId(offer_id)})
+    existing_offer = await db['upsell_items'].find_one({"_id": ObjectId(offer_id)})
     if data.item:
       _validate_object_id(data.item, "Menu Item ID")
 
@@ -107,15 +110,17 @@ class ItemOfferController:
 
     if data.item is not None:
       _validate_object_id(data.item, "Menu Item ID")
-      update_doc["item_id"] = ObjectId(data.item)
-    if data.base_price is not None:
-        update_doc["base_price"] = data.base_price
+      update_doc["item"] = ObjectId(data.item)
+    if data.original_price is not None:
+        update_doc["original_price"] = data.original_price
     if data.offer_price is not None:
         update_doc["offer_price"] = data.offer_price
     if data.offer_percentage is not None:
         update_doc["offer_percentage"] = data.offer_percentage
+    if data.available is not None:
+        update_doc["available"] = data.available
 
-    base_price = update_doc.get("base_price", existing_offer.get("base_price"))
+    base_price = update_doc.get("original_price", existing_offer.get("original_price"))
     offer_price = update_doc.get("offer_price", existing_offer.get("offer_price"))
     if base_price is not None and offer_price is not None:
       if offer_price >= base_price:
@@ -125,19 +130,19 @@ class ItemOfferController:
         )
     if update_doc:
       update_doc["updated_at"] = now
-      await db["item_offer"].update_one(
+      await db["upsell_items"].update_one(
           {"_id": ObjectId(offer_id)},
           {"$set": update_doc},
       )
-    updated_offer = await db["item_offer"].find_one(
+    updated_offer = await db["upsell_items"].find_one(
         {"_id": ObjectId(offer_id)}
     )
     return await _to_response(updated_offer, db)
      
   @staticmethod
-  async def remove_item_offer(offer_id: str, db) -> dict:
+  async def remove_upsell_item(offer_id: str, db) -> dict:
     _validate_object_id(offer_id, "Item Offer ID")
-    result = await db['item_offer'].delete_one({"_id": ObjectId(offer_id)})
+    result = await db['upsell_items'].delete_one({"_id": ObjectId(offer_id)})
     if result.deleted_count == 0:
       raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu item not found.")
     return {"deleted item offer": offer_id}

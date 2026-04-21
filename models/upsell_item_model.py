@@ -1,14 +1,15 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
-class ItemOfferCreate(BaseModel):
+class UpsellItemCreate(BaseModel):
   item: str
-  base_price: Optional[float] = None
+  original_price: Optional[float] = None
   offer_price: Optional[float] = None
   offer_percentage: Optional[float] = None
+  available: Optional[bool] = Field(default=False)
 
 
 
@@ -23,27 +24,28 @@ class PopulateMenuItemOffer(BaseModel):
   available:     Optional[bool]  = None
 
 
-class ItemOfferUpdate(BaseModel):
+class UpsellItemUpdate(BaseModel):
   item: Optional[str] = None
-  base_price: Optional[float] = None
+  original_price: Optional[float] = None
   offer_price: Optional[float] = None
   offer_percentage: Optional[float] = None
+  available: Optional[bool]
 
 
-
-class ItemOfferResponse(BaseModel):
+class UpsellItemResponse(BaseModel):
   id: str
   item: PopulateMenuItemOffer | None
-  base_price: float
+  original_price: float
   offer_price: float
   offer_percentage: float
+  available: bool
   created_at: datetime
   updated_at: datetime
 
 
-class PaginatedItemOfferResponse(BaseModel):
+class PaginatedUpsellItemResponse(BaseModel):
   total_results: int
   page:          int
   limit:         int
   total_pages:   int
-  data:          List[ItemOfferResponse]
+  data:          List[UpsellItemResponse]
