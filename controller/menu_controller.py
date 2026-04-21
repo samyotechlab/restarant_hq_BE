@@ -1,4 +1,5 @@
 import asyncio
+from collections import defaultdict
 import csv
 import io
 import math
@@ -196,6 +197,25 @@ class MenuController:
         if not doc:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu item not found.")
         return _to_response(doc)
+    
+    @staticmethod
+    async def get_limit_fields(db):
+        cursor = db['menu_items'].find(
+            {"available": True},
+            {"_id":1, "item_name":1,"search_name":1,"category": 1,"online_price":1, "dietary":1})
+        docs = await cursor.to_list(length=None)
+        categorized = defaultdict(list)
+        for item in docs:
+            category = item.get("category", "Others")
+            categorized[category].append({
+                    "id": str(item['_id']),
+                    "item_name": item.get("item_name"),
+                    "search_name": item.get("search_name"),
+                    "price": item.get('online_price'),
+                    "dietary": item.get("dietary")
+                })
+            
+        return dict(categorized)
 
     @staticmethod
     async def get_all_items_paginated(db, page: int = 1, limit: int = 10) -> PaginatedMenuResponse:

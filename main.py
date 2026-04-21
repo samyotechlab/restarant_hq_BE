@@ -21,7 +21,7 @@ from routers.feedback_router import router as feedback_router
 from routers.campaign_router import router as campaign_router
 from routers.help_ticket_router import router as help_ticket_router
 from routers.feedback import router as feedback_queue_router
-
+from routers.item_offer_router import router as item_offer_router
 
 async def check_campaign_status_updates():
     """Background task to sync campaign statuses in MongoDB."""
@@ -118,6 +118,7 @@ app.include_router(order_router, prefix="/api")
 app.include_router(feedback_router, prefix="/api")
 app.include_router(campaign_router, prefix="/api")
 app.include_router(help_ticket_router, prefix="/api")
+app.include_router(item_offer_router, prefix="/api")
 
 
 @app.get("/", tags=["Health"], summary="API health check")

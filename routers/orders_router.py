@@ -13,7 +13,7 @@ router = APIRouter(prefix="/orders", tags=["Orders"])
     response_model=StandardResponse[OrderResponse],
     status_code=status.HTTP_201_CREATED,
     summary="Create a new order",
-    include_in_schema=False
+    # include_in_schema=False
 )
 async def create_order(
     data: OrderCreate,
@@ -85,7 +85,7 @@ async def get_all_orders_paginated(
     )
 
 
-@router.get("/bulk_upload_file/status/{job_id}")
+@router.get("/bulk_upload_file/status/{job_id}", include_in_schema=False)
 async def get_bulk_upload_status(job_id: str, db=Depends(get_db)):
     return await OrderController.get_bulk_upload_status(job_id, db)
 
@@ -130,7 +130,7 @@ async def update_order(
     )
 
 
-@router.post("/bulk_upload_file", status_code=202)
+@router.post("/bulk_upload_file", status_code=202, include_in_schema=False)
 async def bulk_upload_orders(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
