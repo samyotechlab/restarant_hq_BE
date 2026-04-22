@@ -1,256 +1,212 @@
-from datetime import datetime
+import io
+import json
 import os
-from typing import List, Optional
-from urllib.parse import urlparse
 import uuid
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status, Query
-from auth.dependencies import get_current_user
+import csv
+from typing import Optional
+from fastapi import (APIRouter,Depends,File,Form,UploadFile,Request,HTTPException,status,Query)
+import pandas as pd
+from controller.campaign_controller import CampaignController
 from db.database import get_db
+from models.base_model import StandardResponse
 from models.campaign_model import (
     CampaignCreate,
     CampaignResponse,
-    CampaignStatus,
-    CampaignType,
     CampaignUpdate,
+    Customer,
     PaginatedCampaignResponse,
 )
-from models.base_model import StandardResponse
-from controller.campaign_controller import CampaignController
 
 router = APIRouter(prefix="/campaigns", tags=["Campaigns"])
 
 UPLOAD_DIR = "uploads/campaigns"
 
+def parse_file(file_bytes: bytes, filename: str):
+    filename = filename.lower()
+    if filename.endswith(".csv"):
+        text = file_bytes.decode("utf-8", errors="ignore")
+        reader = csv.DictReader(io.StringIO(text))
+
+        return [
+            {
+                "name": (r.get("name") or "").strip(),
+                "country_code": (r.get("country_code") or "").strip(),
+                "phone_number": (r.get("phone_number") or "").strip(),
+            }
+            for r in reader
+            if r.get("phone_number")
+        ]
+
+    elif filename.endswith((".xlsx", ".xls")):
+        df = pd.read_excel(io.BytesIO(file_bytes))
+        df = df.where(pd.notna(df), None)
+
+        customers = []
+
+        for _, row in df.iterrows():
+            phone = str(row.get("phone_number", "") or "").strip()
+
+            if not phone:
+                continue
+
+            customers.append({
+                "name": str(row.get("name", "") or "").strip(),
+                "country_code": str(row.get("country_code", "") or "").strip(),
+                "phone_number": phone,
+            })
+
+        return customers
+
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Only CSV, XLSX, XLS files are supported"
+        )
+
+
 @router.post(
     "/",
     response_model=StandardResponse[CampaignResponse],
     status_code=status.HTTP_201_CREATED,
-    summary="Create a new marketing campaign",
-    include_in_schema=False
 )
 async def create_campaign(
     request: Request,
-    campaign_name: Optional[str] = Form(None),
-    campaign_type: Optional[str] = Form(None),
-    description: Optional[str] = Form(None),
-    campaign_status: Optional[str] = Form("scheduled"),
-    start_date: Optional[str] = Form(None),
-    end_date: Optional[str] = Form(None),
-    offer_price: Optional[float] = Form(0.0),
-    discount_percentage: Optional[float] = Form(0.0),
-    menu_items: Optional[List[str]] = Form([]),
-    image: Optional[UploadFile] = File(None),
+    title: str = Form(...),
+    description: str = Form(...),
+    campaign_image: Optional[UploadFile] = File(None),
+    customers_file: Optional[UploadFile] = File(None),
+    customers: Optional[str] = Form(None),
     db=Depends(get_db),
-    # _: dict = Depends(get_current_user),               
 ):
-    """Create a new marketing campaign."""
-    image_url = None
-    if image and image.filename:
-        allowed = ["image/jpeg", "image/png", "image/webp", "image/jpg"]
-        if image.content_type not in allowed:
-            raise HTTPException(status_code=400, detail="Only JPG, PNG, WEBP allowed")
+    final_customers = []
 
-        contents = await image.read()
+    if customers_file and customers_file.filename:
+        file_bytes = await customers_file.read()
+        final_customers.extend(parse_file(file_bytes, customers_file.filename))
+
+    if customers:
+        try:
+            parsed = json.loads(customers)
+            for c in parsed:
+                final_customers.append({
+                    "name": c.get("name", ""),
+                    "country_code": c.get("country_code", ""),
+                    "phone_number": c.get("phone_number", ""),
+                })
+        except Exception:
+            raise HTTPException(400, "Invalid customers JSON")
+
+    if not final_customers:
+        raise HTTPException(400, "No customers provided")
+
+    image_url = None
+
+    if campaign_image and campaign_image.filename:
+        allowed = ["image/jpeg", "image/png", "image/webp", "image/jpg"]
+
+        if campaign_image.content_type not in allowed:
+            raise HTTPException(400, "Only image files allowed")
+
+        contents = await campaign_image.read()
+
         if len(contents) > 5 * 1024 * 1024:
-            raise HTTPException(status_code=400, detail="Image must be under 5MB")
+            raise HTTPException(400, "Image must be under 5MB")
 
         os.makedirs(UPLOAD_DIR, exist_ok=True)
-        ext = image.filename.split(".")[-1].lower()
-        filename = f"{uuid.uuid4().hex}.{ext}"
-        with open(f"{UPLOAD_DIR}/{filename}", "wb") as f:
-            f.write(contents)
-        base_url = str(request.base_url).rstrip("/")
-        image_url = f"{base_url}/uploads/campaigns/{filename}"
 
-    # Build CampaignCreate from form fields
+        ext = campaign_image.filename.split(".")[-1]
+        filename = f"{uuid.uuid4().hex}.{ext}"
+        filepath = f"{UPLOAD_DIR}/{filename}"
+
+        with open(filepath, "wb") as f:
+            f.write(contents)
+
+        base_url = str(request.base_url).rstrip("/")
+        image_url = f"{base_url}/{filepath}"
+
     data = CampaignCreate(
-        campaign_name=campaign_name,
-        campaign_type=CampaignType(campaign_type) if campaign_type else None,
+        title=title,
         description=description,
-        status=CampaignStatus(campaign_status) if campaign_status else None,
-        start_date=datetime.fromisoformat(start_date) if start_date else None,
-        end_date=datetime.fromisoformat(end_date) if end_date else None,
-        offer_price=offer_price,
-        discount_percentage=discount_percentage,
-        menu_items=menu_items,
-        image_url=image_url,  # ← pass saved url
+        customers=[Customer(**c) for c in final_customers],
     )
-    result = await CampaignController.create_campaign(data, db)
+    result = await CampaignController.create_campaign(data, db, image_url)
+
     return StandardResponse(
-        status_code=status.HTTP_201_CREATED,
-        message="Campaign Created Successfully",
+        status_code=201,
+        message="Campaign created successfully",
         result_data=result,
     )
 
 
 @router.get(
     "/fetch_all",
-    response_model=StandardResponse[List[CampaignResponse]],
-    summary="Get all campaigns unpaginated",
-    include_in_schema=False
+    response_model=StandardResponse[list[CampaignResponse]]
 )
-async def fetch_all_campaigns(
-    db=Depends(get_db),
-    # _: dict = Depends(get_current_user),               
-):
-    """Return all campaigns without pagination."""
+async def get_all_campaigns(db=Depends(get_db)):
+
     result = await CampaignController.get_all_campaigns(db)
+
     return StandardResponse(
-        status_code=status.HTTP_200_OK,
-        message="Campaigns Fetched Successfully",
-        result_data=result,
+        status_code=200,
+        message="Campaigns fetched successfully",
+        result_data=result
     )
 
 
 @router.get(
     "/",
-    response_model=StandardResponse[PaginatedCampaignResponse],
-    summary="Get all campaigns with pagination",
+    response_model=StandardResponse[PaginatedCampaignResponse]
 )
 async def get_paginated_campaigns(
-    page: int = Query(default=1, ge=1, description="Page number"),
-    limit: int = Query(default=10, ge=1, le=100, description="Items per page"),
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=1000),
     db=Depends(get_db),
-    _: dict = Depends(get_current_user),                
 ):
-    """Return a paginated list of campaigns."""
+
     result = await CampaignController.get_paginated_campaigns(db, page, limit)
+
     return StandardResponse(
-        status_code=status.HTTP_200_OK,
-        message="Campaigns Fetched Successfully",
-        result_data=result,
+        status_code=200,
+        message="Paginated campaigns fetched successfully",
+        result_data=result
     )
 
 
-@router.get(
-    "/{campaign_id}",
-    response_model=StandardResponse[CampaignResponse],
-    summary="Get a single campaign by ID",
-)
-async def get_campaign(
-    campaign_id: str,
-    db=Depends(get_db),
-    _: dict = Depends(get_current_user),               
-):
-    """Fetch one campaign by its ID — menu items are populated."""
-    result = await CampaignController.get_campaign(campaign_id, db)
+@router.get("/{campaign_id}", response_model=StandardResponse[CampaignResponse])
+async def get_campaign(campaign_id: str, db=Depends(get_db)):
+
+    result = await CampaignController.get_one_campaign(campaign_id, db)
+
     return StandardResponse(
-        status_code=status.HTTP_200_OK,
-        message="Campaign Fetched Successfully",
-        result_data=result,
+        status_code=200,
+        message="Campaign fetched successfully",
+        result_data=result
     )
 
 
-@router.patch(
-    "/{campaign_id}",
-    response_model=StandardResponse[CampaignResponse],
-    summary="Partially update a campaign",
-)
+@router.put("/{campaign_id}", response_model=StandardResponse[CampaignResponse])
 async def update_campaign(
     campaign_id: str,
-    request: Request,
-    campaign_name: Optional[str] = Form(None),
-    campaign_type: Optional[str] = Form(None),
-    description: Optional[str] = Form(None),
-    campaign_status: Optional[str] = Form(None),
-    start_date: Optional[str] = Form(None),
-    end_date: Optional[str] = Form(None),
-    offer_price: Optional[float] = Form(None),
-    discount_percentage: Optional[float] = Form(None),
-    menu_items: Optional[List[str]] = Form(None),
-    image: Optional[UploadFile] = File(None),
+    data: CampaignUpdate,
     db=Depends(get_db),
-    _: dict = Depends(get_current_user),
 ):
-    existing = await CampaignController.get_campaign(campaign_id, db)
 
-    if not existing:
-        raise HTTPException(status_code=404, detail="Campaign not found")
-
-    image_url = existing.image_url
-
-    # 👉 If new image uploaded
-    if image and image.filename:
-        allowed = ["image/jpeg", "image/png", "image/webp", "image/jpg"]
-        if image.content_type not in allowed:
-            raise HTTPException(status_code=400, detail="Only JPG, PNG, WEBP allowed")
-
-        contents = await image.read()
-        if len(contents) > 5 * 1024 * 1024:
-            raise HTTPException(status_code=400, detail="Image must be under 5MB")
-        
-        # 🔥 DELETE OLD IMAGE
-        if existing.image_url:
-            parsed = urlparse(existing.image_url)
-            file_path = parsed.path.replace("/uploads/", "")
-            full_path = os.path.join("uploads", file_path)
-
-            if os.path.exists(full_path) and os.path.isfile(full_path):
-                os.remove(full_path)
-
-        # 🔥 SAVE NEW IMAGE
-        os.makedirs(UPLOAD_DIR, exist_ok=True)
-        ext = image.filename.split(".")[-1].lower()
-        filename = f"{uuid.uuid4().hex}.{ext}"
-
-        with open(f"{UPLOAD_DIR}/{filename}", "wb") as f:
-            f.write(contents)
-
-        base_url = str(request.base_url).rstrip("/")
-        image_url = f"{base_url}/uploads/campaigns/{filename}"
-
-    # 🔥 Build update object
-    data = CampaignUpdate(
-        campaign_name=campaign_name,
-        campaign_type=CampaignType(campaign_type) if campaign_type else None,
-        description=description,
-        status=CampaignStatus(campaign_status) if campaign_status else None,
-        start_date=datetime.fromisoformat(start_date) if start_date else None,
-        end_date=datetime.fromisoformat(end_date) if end_date else None,
-        offer_price=offer_price,
-        discount_percentage=discount_percentage,
-        menu_items=menu_items,
-        image_url=image_url,
-    )
-
-    result = await CampaignController.update_campaign(campaign_id, data, db)
+    result = await CampaignController.update_campaign(db, campaign_id, data)
 
     return StandardResponse(
-        status_code=status.HTTP_200_OK,
-        message="Campaign Updated Successfully",
-        result_data=result,
+        status_code=200,
+        message="Campaign updated successfully",
+        result_data=result
     )
 
 
-@router.delete(
-    "/{campaign_id}",
-    response_model=StandardResponse[dict],
-    summary="Delete a campaign",
-)
-async def delete_campaign(
-    campaign_id: str,
-    db=Depends(get_db),
-    _: dict = Depends(get_current_user),
-):
-    existing = await CampaignController.get_campaign(campaign_id, db)
+@router.delete("/{campaign_id}")
+async def delete_campaign(campaign_id: str, db=Depends(get_db)):
 
-    if not existing:
-        raise HTTPException(status_code=404, detail="Campaign not found")
-
-    # 🔥 DELETE IMAGE FROM DISK
-    if existing.image_url:
-        parsed = urlparse(existing.image_url)
-        file_path = parsed.path.replace("/uploads/", "")
-        full_path = os.path.join("uploads", file_path)
-
-        if os.path.exists(full_path) and os.path.isfile(full_path):
-            os.remove(full_path)
-
-    # 🔥 DELETE FROM DB
-    await CampaignController.delete_campaign(campaign_id, db)
+    result = await CampaignController.remove_campaign(campaign_id, db)
 
     return StandardResponse(
-        status_code=status.HTTP_200_OK,
-        message="Campaign Deleted Successfully",
-        result_data={},
+        status_code=200,
+        message="Campaign deleted successfully",
+        result_data=result
     )

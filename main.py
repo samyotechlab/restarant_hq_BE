@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from db.database import connect_db, close_db
 from models.base_model import StandardResponse
-from models.campaign_model import CampaignStatus
+from models.offers_model import OfferStatus
 from routers import auth_router, user_router
 from routers.customers_router import router as customers_router
 from routers.menu_router import router as menu_router
@@ -18,12 +18,13 @@ from routers.session import router as session_router
 from routers.services_router import router as services_router
 from routers.orders_router import router as order_router
 from routers.feedback_router import router as feedback_router
-from routers.campaign_router import router as campaign_router
+from routers.offer_router import router as offer_router
 from routers.help_ticket_router import router as help_ticket_router
 from routers.feedback import router as feedback_queue_router
 from routers.upsell_item_router import router as upsell_item_router
+from routers.campaign_router import router as campaign_router
 
-async def check_campaign_status_updates():
+async def check_offer_status_updates():
     """Background task to sync campaign statuses in MongoDB."""
     from db.database import get_db
     db = get_db()
@@ -36,18 +37,18 @@ async def check_campaign_status_updates():
 
     start_result = await campaigns_col.update_many(
         {
-            "status": CampaignStatus.SCHEDULED.value,
+            "status": OfferStatus.SCHEDULED.value,
             "start_date": {"$lte": now}
         },
-        {"$set": {"status": CampaignStatus.ACTIVE.value, "updated_at": now}}
+        {"$set": {"status": OfferStatus.ACTIVE.value, "updated_at": now}}
     )
     
     end_result = await campaigns_col.update_many(
         {
-            "status": CampaignStatus.ACTIVE.value,
+            "status": OfferStatus.ACTIVE.value,
             "end_date": {"$lte": now}
         },
-        {"$set": {"status": CampaignStatus.COMPLETED.value, "updated_at": now}}
+        {"$set": {"status": OfferStatus.COMPLETED.value, "updated_at": now}}
     )
 
     if start_result.modified_count > 0:
@@ -58,7 +59,7 @@ async def check_campaign_status_updates():
 async def lifespan(app: FastAPI):
     await connect_db()
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(check_campaign_status_updates, 'interval', minutes=10)
+    scheduler.add_job(check_offer_status_updates, 'interval', minutes=10)
     scheduler.start()
     app.state.scheduler = scheduler
     print("✅ Database connected and Scheduler started")
@@ -108,6 +109,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 app.include_router(auth_router, prefix="/api")
 app.include_router(user_router, prefix="/api")
+app.include_router(campaign_router, prefix="/api")
 app.include_router(session_router, prefix="/api")
 app.include_router(feedback_queue_router, prefix="/api", include_in_schema=False)
 app.include_router(customers_router, prefix="/api")
@@ -116,7 +118,7 @@ app.include_router(enquiry_router, prefix="/api")
 app.include_router(services_router, prefix="/api")
 app.include_router(order_router, prefix="/api")
 app.include_router(feedback_router, prefix="/api")
-app.include_router(campaign_router, prefix="/api")
+app.include_router(offer_router, prefix="/api")
 app.include_router(help_ticket_router, prefix="/api")
 app.include_router(upsell_item_router, prefix="/api")
 
