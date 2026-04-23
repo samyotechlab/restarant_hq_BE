@@ -32,6 +32,7 @@ def parse_file(file_bytes: bytes, filename: str):
                 "name": (r.get("name") or "").strip(),
                 "country_code": (r.get("country_code") or "").strip(),
                 "phone_number": (r.get("phone_number") or "").strip(),
+                "status": (r.get("status") or "").strip()
             }
             for r in reader
             if r.get("phone_number")
@@ -53,6 +54,7 @@ def parse_file(file_bytes: bytes, filename: str):
                 "name": str(row.get("name", "") or "").strip(),
                 "country_code": str(row.get("country_code", "") or "").strip(),
                 "phone_number": phone,
+                "status": str(row.get("status", "") or "").strip(),
             })
 
         return customers
@@ -92,6 +94,7 @@ async def create_campaign(
                     "name": c.get("name", ""),
                     "country_code": c.get("country_code", ""),
                     "phone_number": c.get("phone_number", ""),
+                    "status": c.get('status', "")
                 })
         except Exception:
             raise HTTPException(400, "Invalid customers JSON")
@@ -184,7 +187,7 @@ async def get_campaign(campaign_id: str, db=Depends(get_db)):
     )
 
 
-@router.put("/{campaign_id}", response_model=StandardResponse[CampaignResponse])
+@router.patch("/{campaign_id}", response_model=StandardResponse[CampaignResponse])
 async def update_campaign(
     campaign_id: str,
     data: CampaignUpdate,
@@ -198,6 +201,20 @@ async def update_campaign(
         message="Campaign updated successfully",
         result_data=result
     )
+
+
+@router.patch("/{campaign_id}/customer-status")
+async def update_customer_status(
+    campaign_id: str,
+    phone_number: str,
+    status: str,
+    db=Depends(get_db),
+):
+    await CampaignController.update_customer_status(
+        db, campaign_id, phone_number, status
+    )
+
+    return {"message": "Customer status updated"}
 
 
 @router.delete("/{campaign_id}")

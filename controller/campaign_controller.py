@@ -98,7 +98,8 @@ class CampaignController:
 
         if "customers" in update_fields:
             update_fields["customers"] = [
-                c.model_dump() for c in update_fields["customers"]
+                c.model_dump() if hasattr(c, "model_dump") else c
+                for c in update_fields["customers"]
             ]
 
         if update_fields:
@@ -111,6 +112,28 @@ class CampaignController:
 
         updated = await db["campaign"].find_one({"_id": ObjectId(campaign_id)})
         return _to_response(updated)
+    
+    @staticmethod
+    async def update_customer_status(db, campaign_id: str, phone_number: str, status: str):
+        _validate_object_id(campaign_id, "Campaign ID")
+
+        result = await db["campaign"].update_one(
+            {
+                "_id": ObjectId(campaign_id),
+                "customers.phone_number": phone_number
+            },
+            {
+                "$set": {
+                    "customers.$.status": status,
+                    "updated_at": datetime.now(timezone.utc)
+                }
+            }
+        )
+
+        if result.matched_count == 0:
+            raise HTTPException(404, "Customer not found in campaign")
+
+        return True
 
     @staticmethod
     async def remove_campaign(campaign_id: str, db):

@@ -7,6 +7,7 @@ class Customer(BaseModel):
     name: Optional[str] = None
     country_code: Optional[str] = None
     phone_number: str
+    status: Optional[str] = "Pending"
 
 
 class CampaignCreate(BaseModel):
