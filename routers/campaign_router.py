@@ -217,6 +217,20 @@ async def update_customer_status(
     return {"message": "Customer status updated"}
 
 
+@router.delete("/{campaign_id}/customers/{phone_number}", response_model=StandardResponse[CampaignResponse])
+async def remove_customer_from_campaign(
+    campaign_id: str,
+    phone_number: str,
+    db=Depends(get_db),
+):
+    result = await CampaignController.remove_customer(db, campaign_id, phone_number)
+    return StandardResponse(
+        status_code=200,
+        message="Customer removed from campaign successfully",
+        result_data=result
+    )
+
+
 @router.delete("/{campaign_id}")
 async def delete_campaign(campaign_id: str, db=Depends(get_db)):
 

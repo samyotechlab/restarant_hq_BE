@@ -158,3 +158,20 @@ class CampaignController:
         await db["campaign"].delete_one({"_id": ObjectId(campaign_id)})
 
         return {"deleted_id": campaign_id}
+
+    @staticmethod
+    async def remove_customer(db, campaign_id: str, phone_number: str):
+        _validate_object_id(campaign_id, "Campaign ID")
+        # Pull the customer with the matching phone number
+        result = await db["campaign"].update_one(
+            {"_id": ObjectId(campaign_id)},
+            {
+                "$pull": {"customers": {"phone_number": phone_number}},
+                "$set": {"updated_at": datetime.now(timezone.utc)}
+            }
+        )
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+        # Return the updated campaign document
+        updated = await db["campaign"].find_one({"_id": ObjectId(campaign_id)})
+        return _to_response(updated)
