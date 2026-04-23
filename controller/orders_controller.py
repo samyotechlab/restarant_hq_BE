@@ -229,6 +229,13 @@ class OrderController:
     @staticmethod
     async def create_order(data: OrderCreate, db) -> OrderResponse:
         """Create a new order."""
+        # Validate items list
+        if not data.items or len(data.items) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_200_OK,
+                detail="At least one item is required in the order.",
+            )
+        
         if data.customer:
             _validate_object_id(data.customer, "customer ID")
             customer_exists = await db["customers"].find_one({"_id": ObjectId(data.customer)})
@@ -239,7 +246,19 @@ class OrderController:
                 )
 
         items_to_store = []
-        for item in (data.items or []):
+        for idx, item in enumerate(data.items or []):
+             # Validate item fields
+            if not item.quantity or item.quantity <= 0:
+                raise HTTPException(
+                    status_code=status.HTTP_200_OK,
+                    detail=f"Item {idx + 1}: quantity is required and must be greater than 0.",
+                )
+            
+            if item.price is None or item.price < 0:
+                raise HTTPException(
+                    status_code=status.HTTP_200_OK,
+                    detail=f"Item {idx + 1}: price is required and cannot be negative.",
+                )
             _validate_object_id(item.menu_item, "menu item ID")
             menu_exists = await db["menu_items"].find_one({"_id": ObjectId(item.menu_item)})
             if not menu_exists:
