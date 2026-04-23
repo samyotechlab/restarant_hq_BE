@@ -246,19 +246,9 @@ class OrderController:
                 )
 
         items_to_store = []
-        for idx, item in enumerate(data.items or []):
-             # Validate item fields
-            if not item.quantity or item.quantity <= 0:
-                raise HTTPException(
-                    status_code=status.HTTP_200_OK,
-                    detail=f"Item {idx + 1}: quantity is required and must be greater than 0.",
-                )
-            
-            if item.price is None or item.price < 0:
-                raise HTTPException(
-                    status_code=status.HTTP_200_OK,
-                    detail=f"Item {idx + 1}: price is required and cannot be negative.",
-                )
+
+        for idx, item in enumerate(data.items):
+            # menu item validation
             _validate_object_id(item.menu_item, "menu item ID")
             menu_exists = await db["menu_items"].find_one({"_id": ObjectId(item.menu_item)})
             if not menu_exists:
@@ -308,7 +298,7 @@ class OrderController:
                 {"_id": ObjectId(data.customer)},
                 {
                     "$addToSet": {"orders": str(result.inserted_id)},
-                    "$set": {"updated_at": datetime.now(timezone.utc)},
+                    "$set": {"updated_at": now},
                 },
             )
 

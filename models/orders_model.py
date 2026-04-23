@@ -1,7 +1,8 @@
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional
-from pydantic import BaseModel, Field
+import json
+from typing import List, Optional, Union
+from pydantic import BaseModel, Field, field_validator
 
 
 class OrderStatus(str, Enum):
@@ -98,7 +99,22 @@ class PopulatedCustomer(BaseModel):
 class OrderCreate(BaseModel):
     """All fields optional — frontend handles required validation."""
     customer:       Optional[str]             = None
-    items:          Optional[List[OrderItem]] = []
+    items:          Optional[List[OrderItem]]
+    @field_validator("items", mode="before")
+    @classmethod
+    def normalize_items(cls, v):
+        if v is None or v == "":
+            return []
+
+        if isinstance(v, str):
+            try:
+                v = json.loads(v)
+            except Exception:
+                raise ValueError("items must be valid JSON array string")
+        if isinstance(v, list):
+            return v
+
+        raise ValueError("Invalid items format")
     order_date: Optional[datetime] = None
     order_type: Optional[str] = None
     area: Optional[str] = None
@@ -107,7 +123,7 @@ class OrderCreate(BaseModel):
     server_name: Optional[str] = None
     assign_to: Optional[str] = None
     invoice_no: Optional[str] = None
-    status:         Optional[OrderStatus]     = Field(default=OrderStatus.PENDING)
+    status:         OrderStatus     = Field(default=OrderStatus.PENDING)
     sub_total:      Optional[float]           = None
     tax:            Optional[float]           = None
     discount:       Optional[float]           = None
