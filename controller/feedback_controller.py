@@ -9,9 +9,9 @@ from models.feedback_model import (
     FeedbackResponse,
     FeedbackUpdate,
     PopulatedFeedbackCustomer,
-    PopulatedFeedbackOrder,
     PaginatedFeedbackResponse,
 )
+from controller.orders_controller import _populate_order
 
 
 def _validate_object_id(oid: str, label: str = "ID") -> None:
@@ -36,22 +36,18 @@ async def _populate_feedback(doc: dict, db) -> FeedbackResponse:
                 populated_customer = PopulatedFeedbackCustomer(
                     customer_id=customer_doc.get("customer_id"),
                     name=customer_doc.get("name"),
+                    country_code=customer_doc.get("country_code"),
                     phone_number=customer_doc.get("phone_number"),
                 )
         except Exception:
             pass
 
-    
     populated_order = None
     if doc.get("order"):
         try:
             order_doc = await db["orders"].find_one({"_id": ObjectId(doc["order"])})
             if order_doc:
-                populated_order = PopulatedFeedbackOrder(
-                    order_id=order_doc.get("order_id"),
-                    grand_total=order_doc.get("grand_total"),
-                    status=order_doc.get("status"),
-                )
+                populated_order = await _populate_order(order_doc, db)
         except Exception:
             pass
 

@@ -13,7 +13,7 @@ router = APIRouter(prefix="/orders", tags=["Orders"])
     response_model=StandardResponse[OrderResponse],
     status_code=status.HTTP_201_CREATED,
     summary="Create a new order",
-    # include_in_schema=False
+    include_in_schema=False
 )
 async def create_order(
     data: OrderCreate,

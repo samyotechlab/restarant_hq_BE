@@ -2,6 +2,7 @@ from datetime import datetime
 from enum import Enum
 from typing import List, Optional
 from pydantic import BaseModel, Field
+from models.orders_model import OrderResponse
 
 
 
@@ -30,21 +31,15 @@ class PopulatedFeedbackCustomer(BaseModel):
     """Minimal customer details embedded in feedback response."""
     customer_id: Optional[str] = None
     name: Optional[str] = None
+    country_code: Optional[str] = None
     phone_number: Optional[str] = None
-
-
-class PopulatedFeedbackOrder(BaseModel):
-    """Minimal order details embedded in feedback response."""
-    order_id: Optional[str] = None
-    grand_total: Optional[float] = None
-    status: Optional[str] = None
 
 
 class FeedbackResponse(BaseModel):
     id: str
     feedback_id: str                                            
     customer: Optional[PopulatedFeedbackCustomer] = None
-    order: Optional[PopulatedFeedbackOrder] = None
+    order: Optional[OrderResponse] = None
     phone_number: Optional[str] = None
     overall_rating: Optional[int] = 1
     food_quality_rating: Optional[int] = 1

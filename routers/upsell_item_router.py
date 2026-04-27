@@ -30,6 +30,7 @@ async def create_item(
     "/fetch_all",
     response_model=StandardResponse[list[UpsellItemResponse]],
     summary="Get all Upselling Items unpaginated",
+    include_in_schema=False
 )
 async def fetch_all_item_offer(
     db=Depends(get_db),

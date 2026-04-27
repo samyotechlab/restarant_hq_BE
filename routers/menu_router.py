@@ -135,6 +135,7 @@ async def get_all_items(db=Depends(get_db)):
     "/categorized",
     response_model=StandardResponse[dict],
     summary="Get available menu items grouped by category (limited fields)",
+    include_in_schema=False
 )
 async def get_categorized_menu_items(db=Depends(get_db)):
     result = await MenuController.get_limit_fields(db)

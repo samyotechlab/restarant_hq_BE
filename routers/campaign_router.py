@@ -6,6 +6,7 @@ import csv
 from typing import Optional
 from fastapi import (APIRouter,Depends,File,Form,UploadFile,Request,HTTPException,status,Query)
 import pandas as pd
+from auth.dependencies import get_current_user
 from controller.campaign_controller import CampaignController
 from db.database import get_db
 from models.base_model import StandardResponse
@@ -70,6 +71,7 @@ def parse_file(file_bytes: bytes, filename: str):
     "/",
     response_model=StandardResponse[CampaignResponse],
     status_code=status.HTTP_201_CREATED,
+    include_in_schema=False
 )
 async def create_campaign(
     request: Request,
@@ -79,6 +81,7 @@ async def create_campaign(
     customers_file: Optional[UploadFile] = File(None),
     customers: Optional[str] = Form(None),
     db=Depends(get_db),
+    _: dict = Depends(get_current_user),
 ):
     final_customers = []
 
@@ -143,7 +146,8 @@ async def create_campaign(
 
 @router.get(
     "/fetch_all",
-    response_model=StandardResponse[list[CampaignResponse]]
+    response_model=StandardResponse[list[CampaignResponse]],
+    include_in_schema=False
 )
 async def get_all_campaigns(db=Depends(get_db)):
 
@@ -164,6 +168,7 @@ async def get_paginated_campaigns(
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1, le=1000),
     db=Depends(get_db),
+    _: dict = Depends(get_current_user),
 ):
 
     result = await CampaignController.get_paginated_campaigns(db, page, limit)
@@ -175,7 +180,7 @@ async def get_paginated_campaigns(
     )
 
 
-@router.get("/{campaign_id}", response_model=StandardResponse[CampaignResponse])
+@router.get("/{campaign_id}", response_model=StandardResponse[CampaignResponse], include_in_schema=False)
 async def get_campaign(campaign_id: str, db=Depends(get_db)):
 
     result = await CampaignController.get_one_campaign(campaign_id, db)
@@ -192,6 +197,7 @@ async def update_campaign(
     campaign_id: str,
     data: CampaignUpdate,
     db=Depends(get_db),
+    _: dict = Depends(get_current_user),
 ):
 
     result = await CampaignController.update_campaign(db, campaign_id, data)
@@ -203,7 +209,7 @@ async def update_campaign(
     )
 
 
-@router.patch("/{campaign_id}/customer-status")
+@router.patch("/{campaign_id}/customer-status", include_in_schema=False)
 async def update_customer_status(
     campaign_id: str,
     phone_number: str,
@@ -217,7 +223,7 @@ async def update_customer_status(
     return {"message": "Customer status updated"}
 
 
-@router.delete("/{campaign_id}/customers/{phone_number}", response_model=StandardResponse[CampaignResponse])
+@router.delete("/{campaign_id}/customers/{phone_number}", response_model=StandardResponse[CampaignResponse], include_in_schema=False)
 async def remove_customer_from_campaign(
     campaign_id: str,
     phone_number: str,
@@ -232,7 +238,7 @@ async def remove_customer_from_campaign(
 
 
 @router.delete("/{campaign_id}")
-async def delete_campaign(campaign_id: str, db=Depends(get_db)):
+async def delete_campaign(campaign_id: str, db=Depends(get_db), _: dict = Depends(get_current_user)):
 
     result = await CampaignController.remove_campaign(campaign_id, db)
 

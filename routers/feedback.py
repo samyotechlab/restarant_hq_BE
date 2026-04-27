@@ -26,7 +26,7 @@ class MarkSentRequest(BaseModel):
 
 
 # ── Store feedback in queue ───────────────────────────────────
-@router.post("/store")
+@router.post("/store", include_in_schema=False)
 def store_feedback(payload: FeedbackStoreRequest):
     try:
         send_date = (
@@ -73,7 +73,7 @@ def pending_feedback(date: str = None): # pyright: ignore[reportArgumentType]
 
 
 # ── Mark feedback as sent ─────────────────────────────────────
-@router.post("/mark-sent")
+@router.post("/mark-sent", include_in_schema=False)
 def mark_sent(payload: MarkSentRequest):
     try:
         success = mark_feedback_sent(payload.order_id)
@@ -90,7 +90,7 @@ def mark_sent(payload: MarkSentRequest):
 
 
 # ── Get specific feedback entry ───────────────────────────────
-@router.get("/get/{order_id}")
+@router.get("/get/{order_id}", include_in_schema=False)
 def get_feedback_entry(order_id: str):
     try:
         entry = get_feedback(order_id)
@@ -107,7 +107,7 @@ def get_feedback_entry(order_id: str):
 
 
 # ── Delete feedback entry ─────────────────────────────────────
-@router.delete("/delete/{order_id}")
+@router.delete("/delete/{order_id}", include_in_schema=False)
 def delete_feedback_entry(order_id: str):
     try:
         success = delete_feedback(order_id)
