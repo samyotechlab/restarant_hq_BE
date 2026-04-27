@@ -21,6 +21,7 @@ class EnquiryCreate(BaseModel):
     source: Optional[str] = Field(None)
     status: Optional[EnquiryStatus] = Field(default=EnquiryStatus.NEW)
     assigned_to: Optional[str] = Field(None)
+    notes: Optional[str] = Field(None)
 
 
 class EnquiryUpdate(BaseModel):
@@ -32,6 +33,7 @@ class EnquiryUpdate(BaseModel):
     source: Optional[str] = Field(None)
     status: Optional[EnquiryStatus] = None
     assigned_to: Optional[str] = Field(None)
+    notes: Optional[str] = Field(None)
 
 
 class EnquiryResponse(BaseModel):
@@ -45,6 +47,7 @@ class EnquiryResponse(BaseModel):
     source: Optional[str] = None
     status: EnquiryStatus
     assigned_to: Optional[str] = None
+    notes: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

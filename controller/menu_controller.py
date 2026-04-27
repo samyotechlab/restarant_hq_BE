@@ -211,6 +211,7 @@ class MenuController:
                     "id": str(item['_id']),
                     "item_name": item.get("item_name"),
                     "search_name": item.get("search_name"),
+                    "description": item.get("description"),
                     "price": item.get('online_price'),
                     "dietary": item.get("dietary")
                 })

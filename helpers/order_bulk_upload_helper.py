@@ -3,7 +3,7 @@ import math
 import os
 import re
 import unicodedata
-import uuid
+from uuid import uuid4
 from datetime import datetime, timezone
 from typing import Optional
 from bson import ObjectId
@@ -473,6 +473,7 @@ async def _process_bulk_upload_job(job_id: str, file_path: str, db):
                     customers_found += 1
                 else:
                     new_cust = {
+                        "customer_id": f"CUS-{uuid4().hex[:8].upper()}",
                         "name":         cust_name or "Unknown",
                         "country_code": country_code if country_code else "+971",
                         "phone_number": phone_number,
@@ -561,7 +562,7 @@ async def _process_bulk_upload_job(job_id: str, file_path: str, db):
                         pass
 
                 order_doc = {
-                    "order_id":        f"ORD-{uuid.uuid4().hex[:8].upper()}",
+                    "order_id":        f"ORD-{uuid4().hex[:8].upper()}",
                     "invoice_no":      invoice_no,
                     "order_date":      order_date,
                     "order_timestamp": order_timestamp,

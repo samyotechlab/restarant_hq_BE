@@ -26,6 +26,7 @@ def _to_response(doc: dict) -> EnquiryResponse:
         source=doc.get("source"),
         status=doc["status"],
         assigned_to=doc.get("assigned_to"),
+        notes=doc.get("notes") if doc.get("notes") else None,
         created_at=doc["created_at"],
         updated_at=doc["updated_at"],
     )
