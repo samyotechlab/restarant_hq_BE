@@ -97,7 +97,7 @@ async def get_customer_by_phone(
 async def get_customer(
     customer_id: str,
     db=Depends(get_db),
-    _: dict = Depends(get_current_user),                                        
+    # _: dict = Depends(get_current_user),                                      
 ):
     """Fetch one customer by their ID. Returns 404 if not found."""
     result = await CustomerController.get_customer(customer_id, db)
