@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 from typing import Any, List, Optional
-from pydantic import BaseModel, HttpUrl, Field
+from pydantic import BaseModel, Field
 import re
 
 
@@ -12,6 +12,7 @@ def _make_search_name(name: str) -> str:
     name = re.sub(r"[^\w\s]", " ", name)
     name = re.sub(r"\s+", " ", name).strip()
     return name
+
 
 class MenuItemType(str, Enum):
     VEG = "Veg"
@@ -27,12 +28,12 @@ class MenuItemCreate(BaseModel):
       ItemName            → item_name
       ItemDescription     → description
       ItemBasePrice       → base_price
-      Dietary             → type        ('veg' → Veg, 'non-veg' → Non-Veg)
+      Dietary             → dietary        ('veg' → Veg, 'non-veg' → Non-Veg)
+      Unit of sale        → unit_of_sale
       Online Price        → online_price
-      Online Availability → available   ('Yes' → True, 'No' → False)
-
-    Not in CSV (set manually via app/API):
-      image, offer
+      Options             → options        (comma-separated → List[str])
+      Upsell              → upsell
+      Online Availability → available      ('Yes' → True, 'No' → False)
     """
     item_name: str = Field(...)
     search_name: Optional[str] = None
@@ -41,11 +42,10 @@ class MenuItemCreate(BaseModel):
     base_price: float = Field(..., ge=0)
     online_price: float = Field(..., ge=0)
     dietary: MenuItemType
+    unit_of_sale: Optional[str] = Field(None, description="e.g. Per Plate, Per Kg, Per Pcs")
+    options: Optional[List[str]] = Field(None, description="e.g. ['Regular', 'Cheese', 'Grilled']")
+    upsell: Optional[str] = Field(None, description="e.g. Extra Chatni, Extra Pav")
     available: bool = Field(default=True)
-
-    # Set manually via API — not in CSV
-    image: Optional[HttpUrl] = None
-    offer: Optional[str] = None
 
 
 class MenuItemUpdate(BaseModel):
@@ -57,9 +57,10 @@ class MenuItemUpdate(BaseModel):
     base_price: Optional[float] = Field(None, ge=0)
     online_price: Optional[float] = Field(None, ge=0)
     dietary: Optional[MenuItemType] = None
+    unit_of_sale: Optional[str] = None
+    options: Optional[List[str]] = None
+    upsell: Optional[str] = None
     available: Optional[bool] = None
-    image: Optional[HttpUrl] = None
-    offer: Optional[str] = None
 
 
 class MenuItemResponse(BaseModel):
@@ -73,9 +74,10 @@ class MenuItemResponse(BaseModel):
     base_price: float
     online_price: float
     dietary: MenuItemType
+    unit_of_sale: Optional[str] = None
+    options: Optional[List[str]] = None
+    upsell: Optional[str] = None
     available: bool
-    image: Optional[str] = None
-    offer: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -132,7 +134,7 @@ def _s(val: Any) -> Optional[str]:
 
 
 def _f(val: Any) -> Optional[float]:
-    """Safe positive float — returns None for non-numeric or zero/negative."""
+    """Safe positive float — returns None for non-numeric or negative."""
     try:
         v = float(val)
         return v if v >= 0 else None
@@ -140,9 +142,21 @@ def _f(val: Any) -> Optional[float]:
         return None
 
 
+def _parse_options(val: Any) -> Optional[List[str]]:
+    """
+    Parse comma-separated options string → List[str].
+    e.g. "Regular, Cheese/Grilled, 24 AED" → ["Regular", "Cheese/Grilled", "24 AED"]
+    Returns None if empty/null.
+    """
+    raw = _s(val)
+    if not raw:
+        return None
+    return [opt.strip() for opt in raw.split(",") if opt.strip()]
+
+
 class CSVMenuRow(BaseModel):
     """
-    Maps the 7 columns from Shree-Gangour-Sweets-menu.csv.
+    Maps the 10 columns from MenuAI_Final_Updated.xlsx.
     Call .to_menu_item_create() to get a validated MenuItemCreate.
 
     Columns:
@@ -150,8 +164,11 @@ class CSVMenuRow(BaseModel):
       ItemName            → item_name
       ItemDescription     → description
       ItemBasePrice       → base_price
-      Dietary             → type
+      Dietary             → dietary
+      Unit of sale        → unit_of_sale
       Online Price        → online_price
+      Options             → options        (comma-separated → List[str])
+      Upsell              → upsell
       Online Availability → available
     """
     CategoryName: Optional[str] = None
@@ -159,7 +176,10 @@ class CSVMenuRow(BaseModel):
     ItemDescription: Optional[str] = None
     ItemBasePrice: Optional[Any] = None
     Dietary: Optional[str] = None
+    Unit_of_sale: Optional[str] = Field(None, alias="Unit of sale")
     Online_Price: Optional[Any] = Field(None, alias="Online Price")
+    Options: Optional[Any] = None
+    Upsell: Optional[str] = None
     Online_Availability: Optional[str] = Field(None, alias="Online Availability")
 
     model_config = {"populate_by_name": True, "extra": "allow"}
@@ -199,7 +219,8 @@ class CSVMenuRow(BaseModel):
             base_price=base_price,
             online_price=online_price,
             dietary=item_type,
+            unit_of_sale=_s(self.Unit_of_sale),
+            options=_parse_options(self.Options),
+            upsell=_s(self.Upsell),
             available=available,
-            image=None,
-            offer=None,
         )

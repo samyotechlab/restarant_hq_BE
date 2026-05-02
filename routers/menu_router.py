@@ -2,7 +2,7 @@ import os
 from typing import List
 from uuid import uuid4
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, UploadFile, status, Query
+from fastapi import APIRouter, Depends, File, UploadFile, status, Query
 from auth.dependencies import get_current_user
 from db.database import get_db
 from models.menu_model import (
@@ -80,7 +80,7 @@ async def bulk_upload_menu_items_file(
     summary="Bulk upload menu items",
 )
 async def bulk_upload_menu_items(
-    data: list[dict],
+    data: List[dict],
     db=Depends(get_db),
     _: dict = Depends(get_current_user),
 ):
