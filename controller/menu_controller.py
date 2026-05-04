@@ -168,7 +168,7 @@ class MenuController:
     async def get_limit_fields(db):
         cursor = db["menu_items"].find(
             {"available": True},
-            {"_id": 1, "item_name": 1, "search_name": 1, "category": 1,
+            {"_id": 1, "item_name": 1, "category": 1, "description": 1,
              "online_price": 1, "dietary": 1, "options": 1, "upsell": 1, "unit_of_sale": 1},
         )
         docs = await cursor.to_list(length=None)
@@ -177,7 +177,7 @@ class MenuController:
             categorized[item.get("category", "Others")].append({
                 "id":           str(item["_id"]),
                 "item_name":    item.get("item_name"),
-                "search_name":  item.get("search_name"),
+                "description":  item.get("description"),
                 "price":        item.get("online_price"),
                 "dietary":      item.get("dietary"),
                 "unit_of_sale": item.get("unit_of_sale"),
