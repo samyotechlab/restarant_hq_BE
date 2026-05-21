@@ -33,9 +33,9 @@ async def check_offer_status_updates():
         return
 
     now = datetime.now(timezone.utc)
-    campaigns_col = db["campaigns"]
+    offers_col = db["offer"]
 
-    start_result = await campaigns_col.update_many(
+    start_result = await offers_col.update_many(
         {
             "status": OfferStatus.SCHEDULED.value,
             "start_date": {"$lte": now}
@@ -43,7 +43,7 @@ async def check_offer_status_updates():
         {"$set": {"status": OfferStatus.ACTIVE.value, "updated_at": now}}
     )
     
-    end_result = await campaigns_col.update_many(
+    end_result = await offers_col.update_many(
         {
             "status": OfferStatus.ACTIVE.value,
             "end_date": {"$lte": now}
@@ -52,7 +52,7 @@ async def check_offer_status_updates():
     )
 
     if start_result.modified_count > 0:
-        print(f"🚀 Activated {start_result.modified_count} campaigns.")
+        print(f"🚀 Activated {start_result.modified_count} offers.")
 
 
 @asynccontextmanager

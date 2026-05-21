@@ -21,6 +21,9 @@ class CustomerCreate(BaseModel):
     email: Optional[str] = None
     address: Optional[str] = Field(None)
     orders: List[str] = Field(default=[])
+    campaign_code: Optional[str] = None
+    campaign_message: Optional[str] = None
+    campaign_used: Optional[bool] = False
     status: CustomerStatus = Field(default=CustomerStatus.NEW)
 
 
@@ -31,6 +34,9 @@ class CustomerUpdate(BaseModel):
     phone_number: Optional[str] = Field(None, min_length=7, max_length=15)
     email: Optional[str] = None
     address: Optional[str] = Field(None)
+    campaign_code: Optional[str] = None
+    campaign_message: Optional[str] = None
+    campaign_used: Optional[bool] = False
     status: Optional[CustomerStatus] = None
 
 
@@ -52,6 +58,9 @@ class CustomerResponse(BaseModel):
     email: Optional[str] = None
     address: Optional[str] = None
     orders: List[PopulatedOrder] = []
+    campaign_code: Optional[str] = None
+    campaign_message: Optional[str] = None
+    campaign_used: Optional[bool] = False
     status: CustomerStatus
     last_order_at: Optional[datetime] = None
     created_at: datetime
