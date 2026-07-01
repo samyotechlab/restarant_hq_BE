@@ -8,6 +8,10 @@ class Customer(BaseModel):
     country_code: Optional[str] = None
     phone_number: str
     status: Optional[str] = "Pending"
+    address: Optional[str] = None
+    sent_at: Optional[datetime] = None
+    read_at: Optional[datetime] = None
+    fail_reason: Optional[str] = None
 
 
 class CampaignCreate(BaseModel):
@@ -33,8 +37,14 @@ class CampaignResponse(BaseModel):
     description: str
     customers: List[Customer]
     is_sent: bool
-    created_at: datetime
-    updated_at: datetime
+    created_at: Optional[datetime]
+    updated_at: Optional[datetime]
+    # ── Stats (computed, not stored in DB) ──
+    total_customers: int = 0
+    sent_count: int = 0
+    read_count: int = 0
+    failed_count: int = 0
+    error_count: int = 0
 
 
 class PaginatedCampaignResponse(BaseModel):
