@@ -22,18 +22,28 @@ def _validate_object_id(oid: str, label: str = "ID") -> ObjectId:
     return ObjectId(oid)
 
 
-def _to_response(campaign: dict) -> CampaignResponse:
+def _to_response(doc: dict) -> CampaignResponse:
+    customers = doc.get("customers", [])
+    total     = len(customers)
+    sent      = sum(1 for c in customers if (c.get("status") or "").lower() == "sent")
+    read      = sum(1 for c in customers if (c.get("status") or "").lower() == "read")
+    failed    = sum(1 for c in customers if (c.get("status") or "").lower() == "failed")
+    error     = sum(1 for c in customers if (c.get("status") or "").lower() == "error")
+
     return CampaignResponse(
-        id=str(campaign["_id"]),
-        campaign_image=campaign.get("campaign_image"),
-        title=campaign.get("title", ""),
-        description=campaign.get("description", ""),
-        customers=[
-            Customer(**c) for c in campaign.get("customers", [])
-        ],
-        is_sent=campaign.get("is_sent", False),
-        created_at=campaign["created_at"],
-        updated_at=campaign["updated_at"],
+        id=str(doc["_id"]),
+        campaign_image=doc.get("campaign_image"),
+        title=doc.get("title", ""),
+        description=doc.get("description", ""),
+        customers=[Customer(**c) for c in customers],
+        is_sent=doc.get("is_sent", False),
+        created_at=doc.get("created_at"),
+        updated_at=doc.get("updated_at"),
+        total_customers=total,
+        sent_count=sent,
+        read_count=read,
+        failed_count=failed,
+        error_count=error,
     )
 
 
@@ -64,7 +74,7 @@ class CampaignController:
     async def get_paginated_campaigns(db, page: int = 1, limit: int = 10):
         skip = (page - 1) * limit
         total = await db["campaign"].count_documents({})
-        campaigns = await db["campaign"].find().skip(skip).limit(limit).to_list(length=None)
+        campaigns = await db["campaign"].find().skip(skip).sort("created_at", -1).limit(limit).to_list(length=None)
         return PaginatedCampaignResponse(
             total_results=total,
             page=page,
@@ -114,20 +124,27 @@ class CampaignController:
         return _to_response(updated)
     
     @staticmethod
-    async def update_customer_status(db, campaign_id: str, phone_number: str, status: str):
+    async def update_customer_status(db, campaign_id: str, phone_number: str, new_status: str, fail_reason: str | None = None):
         _validate_object_id(campaign_id, "Campaign ID")
-
+        
+        set_fields = {
+            "customers.$.status": new_status,
+            "updated_at": datetime.now(timezone.utc),
+        }
+        s = new_status.lower()
+        if s == "sent":
+            set_fields["customers.$.sent_at"] = datetime.now(timezone.utc)
+        elif s == "read":
+            set_fields["customers.$.read_at"] = datetime.now(timezone.utc)
+        elif s in ("failed", "error") and fail_reason:
+            set_fields["customers.$.fail_reason"] = fail_reason
+        
         result = await db["campaign"].update_one(
             {
                 "_id": ObjectId(campaign_id),
                 "customers.phone_number": phone_number
             },
-            {
-                "$set": {
-                    "customers.$.status": status,
-                    "updated_at": datetime.now(timezone.utc)
-                }
-            }
+            {"$set": set_fields}
         )
 
         if result.matched_count == 0:
@@ -175,3 +192,16 @@ class CampaignController:
         # Return the updated campaign document
         updated = await db["campaign"].find_one({"_id": ObjectId(campaign_id)})
         return _to_response(updated)
+    
+    @staticmethod
+    async def get_all_used_phones(db) -> list[str]:
+        campaigns = await db["campaign"].find(
+            {}, {"customers.phone_number": 1}
+        ).to_list(length=None)
+
+        phones = set()
+        for c in campaigns:
+            for cust in c.get("customers", []):
+                if p := cust.get("phone_number"):
+                    phones.add(str(p))
+        return list(phones)
