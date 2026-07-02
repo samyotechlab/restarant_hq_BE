@@ -10,6 +10,7 @@ import pandas as pd
 from auth.dependencies import get_current_user
 from controller.campaign_controller import CampaignController
 from db.database import get_db
+from helpers.phone_normalizer import normalize_phone
 from models.base_model import StandardResponse
 from models.campaign_model import (
     CampaignCreate,
@@ -37,34 +38,23 @@ def parse_file(file_bytes: bytes, filename: str):
         return ""
 
     def normalize_row(row: dict) -> dict | None:
-        phone = pick(row, "phone", "phone_number", "mobile", "contact")
-        phone = (
-            phone.replace(" ", "")
-            .replace("-", "")
-            .replace("(", "")
-            .replace(")", "")
-        )
-        if not phone:
+        raw_phone = pick(row, "phone", "phone_number", "mobile", "contact")
+        if not raw_phone:
             return None
 
-        country_code = pick(row, "country_code", "code", "country code")
-        if not country_code:
-            digits = "".join(ch for ch in phone if ch.isdigit())
-            if len(digits) == 10:
-                country_code = "+91"
-            elif len(digits) == 9:
-                country_code = "+971"
-            elif len(digits) == 11:
-                country_code = "+86"
-            else:
-                country_code = "+971"
+        raw_cc = pick(row, "country_code", "code", "country code")
+
+        country_code, local_number = normalize_phone(raw_phone, raw_cc)
+        if not local_number:
+            return None
 
         address = pick(row, "primary address", "address", "primary_address")
+        name = pick(row, "name", "customer name", "full name") or "Unknown"
 
         return {
-            "name": pick(row, "name", "customer name", "full name") or "Unknown",
+            "name": name,
             "country_code": country_code,
-            "phone_number": phone,
+            "phone_number": local_number,
             "status": "Pending",
             "address": address,
         }
