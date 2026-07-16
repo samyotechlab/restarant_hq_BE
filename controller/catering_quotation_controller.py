@@ -1,4 +1,5 @@
 import math
+from pathlib import Path
 from bson import ObjectId
 from fastapi import HTTPException
 from models.catering_quotation_model import CateringQuotationResponse, CreateCateringQuotation, PaginatedCateringQuotationResponse, UpdateCateringQuotation
@@ -158,6 +159,11 @@ class CateringQuotationController:
     )
   
   @staticmethod
+  async def get_all_quotations(db):
+    quotations = await db['catering_quotation'].find().sort('created_at', -1).to_list(length=None)
+    return [CateringQuotationController._to_response(q) for q in quotations]
+  
+  @staticmethod
   async def get_quotation_by_id(quotation_id: str, db):
     quot = await db['catering_quotation'].find_one({"_id": ObjectId(quotation_id)})
     if not quot:
@@ -215,5 +221,17 @@ class CateringQuotationController:
     if not exist:
       raise HTTPException(status_code=404, detail="Catering Quotation not found!")
     
+    menu_file_url = exist.get("menu_file_url")
+
+    try:
+      if menu_file_url and menu_file_url.startswith("/uploads/"):
+        relative_path = menu_file_url.replace("/uploads/", "", 1)
+        file_path = Path("uploads") / relative_path
+
+        if file_path.is_file():
+          file_path.unlink(missing_ok=True)
+    except Exception:
+      pass
+
     await db['catering_quotation'].delete_one({"_id": ObjectId(quotation_id)})
     return CateringQuotationController._to_response(exist)

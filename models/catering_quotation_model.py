@@ -7,6 +7,7 @@ class CreateCateringQuotation(BaseModel):
     name: str
     service_address: str
     service_date: str
+    service_time: str
     quotation_no: str
     prepared_date: str
     prepared_by: str
@@ -18,6 +19,8 @@ class CreateCateringQuotation(BaseModel):
     approved_by: Optional[str] = None
 
     revenue_notes: Optional[str] = None
+    menu_file_url: Optional[str] = None
+    menu_file_name: Optional[str] = None
 
     revenue_qty: float = Field(ge=0)
     revenue_rate: float = Field(ge=0)
@@ -73,6 +76,7 @@ class UpdateCateringQuotation(BaseModel):
     name: Optional[str] = None
     service_address: Optional[str] = None
     service_date: Optional[str] = None
+    service_time: Optional[str] = None
     quotation_no: Optional[str] = None
     prepared_date: Optional[str] = None
     prepared_by: Optional[str] = None
@@ -84,6 +88,8 @@ class UpdateCateringQuotation(BaseModel):
     approved_by: Optional[str] = None
 
     revenue_notes: Optional[str] = None
+    menu_file_url: Optional[str] = None
+    menu_file_name: Optional[str] = None
 
     revenue_qty: Optional[float] = Field(default=None, ge=0)
     revenue_rate: Optional[float] = Field(default=None, ge=0)
@@ -140,6 +146,7 @@ class CateringQuotationResponse(BaseModel):
     name: str
     service_address: str
     service_date: str
+    service_time: Optional[str] = None
     quotation_no: str
     prepared_date: str
     prepared_by: str
@@ -151,6 +158,8 @@ class CateringQuotationResponse(BaseModel):
     approved_by: Optional[str] = None
 
     revenue_notes: Optional[str] = None
+    menu_file_url: Optional[str] = None
+    menu_file_name: Optional[str] = None
 
     revenue_qty: float = 0
     revenue_rate: float = 0
