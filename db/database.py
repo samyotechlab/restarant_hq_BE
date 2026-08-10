@@ -10,7 +10,7 @@ db = None
 async def connect_db():
     """Called on app startup — creates the Motor client and selects the DB."""
     global client, db
-    client = AsyncIOMotorClient(settings.MONGODB_URL, tlsAllowInvalidCertificates=True)
+    client = AsyncIOMotorClient(settings.MONGODB_URL, tlsAllowInvalidCertificates=True, tz_aware=True)
     db_name = settings.MONGODB_URL.split("/")[-1].split("?")[0]
     db = client[db_name]
     print(f"✅  Connected to MongoDB")
