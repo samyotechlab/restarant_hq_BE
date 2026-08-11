@@ -6,6 +6,7 @@ from bson import ObjectId
 from fastapi import HTTPException
 import httpx
 
+from config.settings import settings
 from models.whatsapp_inbox_model import (
     ConversationStatus,
     IngestWhatsappMessage,
@@ -490,15 +491,16 @@ class WhatsappInboxController:
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 await client.post(
-                    "https://mygangour-chatbot.samyotech.in/webhook/send-human-reply",
+                    url=settings.N8N_SEND_HUMAN_REPLY_WEBHOOK,
                     json={
-                        "mongo_id": result.inserted_id,
+                        "mongo_id": str(result.inserted_id),
                         "country_code": conversation['country_code'],
                         "phone": conversation['customer_phone'],
                         "text_message": payload.text_body
                     }
                 )
-        except Exception:
+        except Exception as e:
+            print("Webhook call Failed: ", e)
             pass
 
         return WhatsappInboxController._message_to_response(saved_message)

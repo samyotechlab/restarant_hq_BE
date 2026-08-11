@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     REDIS_PORT: int = 6379
     REDIS_PASSWORD: Optional[str] = None
     N8N_CATALOG_SYNC_WEBHOOK: str
+    N8N_SEND_HUMAN_REPLY_WEBHOOK: str
 
     class Config:
         env_file = ".env"
