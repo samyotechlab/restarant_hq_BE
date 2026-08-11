@@ -4,6 +4,7 @@ from typing import Any, Optional
 
 from bson import ObjectId
 from fastapi import HTTPException
+import httpx
 
 from models.whatsapp_inbox_model import (
     ConversationStatus,
@@ -128,6 +129,7 @@ class WhatsappInboxController:
         message_timestamp = payload.message_timestamp or now
 
         conversation_doc = {
+            "country_code": payload.country_code,
             "customer_phone": payload.customer_phone,
             "customer_name": payload.customer_name,
             "status": ConversationStatus.OPEN.value,
@@ -485,13 +487,38 @@ class WhatsappInboxController:
 
         saved_message = await messages.find_one({"_id": result.inserted_id})
 
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                await client.post(
+                    "https://mygangour-chatbot.samyotech.in/webhook/send-human-reply",
+                    json={
+                        "mongo_id": result.inserted_id,
+                        "country_code": conversation['country_code'],
+                        "phone": conversation['customer_phone'],
+                        "text_message": payload.text_body
+                    }
+                )
+        except Exception:
+            pass
+
         return WhatsappInboxController._message_to_response(saved_message)
 
     @staticmethod
     async def update_message_status(payload: UpdateMessageStatus,db) -> WhatsappMessageResponse:
         messages = db[WhatsappInboxController.MESSAGES_COLLECTION]
 
-        message = await messages.find_one({"wamid": payload.wamid})
+        query: dict[str, Any] = {}
+        if payload.mongo_id:
+            query['_id'] = ObjectId(payload.mongo_id) 
+        elif payload.wamid:
+            query['wamid'] = payload.wamid
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="Mongo ID or Wamid is required"
+            )
+
+        message = await messages.find_one(query)
 
         if not message:
             raise HTTPException(
@@ -508,15 +535,15 @@ class WhatsappInboxController:
             "status": payload.status.value,
         }
 
+        if payload.wamid:
+            update_data['wamid'] = payload.wamid
+
         if payload.status == MessageStatus.SENT:
             update_data["sent_at"] = status_time
-
         elif payload.status == MessageStatus.DELIVERED:
             update_data["delivered_at"] = status_time
-
         elif payload.status == MessageStatus.READ:
             update_data["read_at"] = status_time
-
         elif payload.status == MessageStatus.FAILED:
             update_data["failed_at"] = status_time
             update_data["error_message"] = payload.error_message

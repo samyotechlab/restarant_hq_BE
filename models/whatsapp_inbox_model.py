@@ -43,6 +43,7 @@ class ConversationStatus(str, Enum):
 
 class IngestWhatsappMessage(BaseModel):
     wamid: str = Field(..., min_length=1)
+    country_code: Optional[str] = Field(default="+971")
     customer_phone: str = Field(..., min_length=5)
     customer_name: Optional[str] = None
 
@@ -71,7 +72,8 @@ class UpdateConversationStatus(BaseModel):
 
 
 class UpdateMessageStatus(BaseModel):
-    wamid: str = Field(..., min_length=1)
+    wamid: Optional[str] = None
+    mongo_id: Optional[str] = None
     status: MessageStatus
     status_timestamp: Optional[datetime] = None
     error_message: Optional[str] = None
@@ -106,6 +108,7 @@ class WhatsappConversationResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     id: str
+    country_code: Optional[str] = Field(default="+971")
     customer_phone: str
     customer_name: Optional[str] = None
 
