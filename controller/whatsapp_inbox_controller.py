@@ -546,6 +546,7 @@ class WhatsappInboxController:
             update_data["delivered_at"] = status_time
         elif payload.status == MessageStatus.READ:
             update_data["read_at"] = status_time
+            update_data["unread_count"] = 0
         elif payload.status == MessageStatus.FAILED:
             update_data["failed_at"] = status_time
             update_data["error_message"] = payload.error_message
