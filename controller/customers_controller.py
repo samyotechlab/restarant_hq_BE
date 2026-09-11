@@ -396,9 +396,10 @@ class CustomerController:
 
         for index, customer in enumerate(data):
             try:
-                existing = await db["customers"].find_one({"email": customer.email})
-                if existing:
-                    raise ValueError(f"Email '{customer.email}' already exists.")
+                if customer.email:
+                    existing = await db["customers"].find_one({"email": customer.email})
+                    if existing:
+                        raise ValueError(f"Email '{customer.email}' already exists.")
 
                 now = datetime.now(timezone.utc)
                 customer_doc = {
@@ -444,7 +445,8 @@ class CustomerController:
         """
         Parse a CSV file and bulk insert customers.
         Expected CSV columns (header row required):
-        name, country_code, phone_number, email, address
+        name, country_code, phone_number, address
+        The email column is optional.
         """
         import csv
         import io
@@ -452,7 +454,7 @@ class CustomerController:
         content = file_bytes.decode("utf-8")
         reader = csv.DictReader(io.StringIO(content))
 
-        required_columns = {"name", "country_code", "phone_number", "email", "address"}
+        required_columns = {"name", "country_code", "phone_number", "address"}
         if not required_columns.issubset(set(reader.fieldnames or [])):
             missing = required_columns - set(reader.fieldnames or [])
             raise HTTPException(
@@ -467,7 +469,7 @@ class CustomerController:
                     name=row["name"].strip(),
                     country_code=row["country_code"].strip(),
                     phone_number=row["phone_number"].strip(),
-                    email=row["email"].strip(),
+                    email=row.get("email", "").strip() or None,
                     address=row["address"].strip(),
                 )
                 customers.append(customer)
@@ -492,9 +494,10 @@ class CustomerController:
 
         for index, customer in valid_customers:
             try:
-                existing = await db["customers"].find_one({"email": customer.email})
-                if existing:
-                    raise ValueError(f"Email '{customer.email}' already exists.")
+                if customer.email:
+                    existing = await db["customers"].find_one({"email": customer.email})
+                    if existing:
+                        raise ValueError(f"Email '{customer.email}' already exists.")
 
                 now = datetime.now(timezone.utc)
                 customer_doc = {
