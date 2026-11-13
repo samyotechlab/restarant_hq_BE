@@ -34,6 +34,10 @@ class CreateCateringQuotation(BaseModel):
     staff_cost_rate: float = Field(ge=0)
     staff_cost: float = Field(ge=0)
 
+    chef_staff_cost_qty: float = Field(default=0, ge=0)
+    chef_staff_cost_rate: float = Field(default=0, ge=0)
+    chef_staff_cost: float = Field(default=0, ge=0)
+
     full_day_service_qty: float = Field(ge=0)
     full_day_service_rate: float = Field(ge=0)
     full_day_service: float = Field(ge=0)
@@ -102,6 +106,10 @@ class UpdateCateringQuotation(BaseModel):
     staff_cost_qty: Optional[float] = Field(default=None, ge=0)
     staff_cost_rate: Optional[float] = Field(default=None, ge=0)
     staff_cost: Optional[float] = Field(default=None, ge=0)
+
+    chef_staff_cost_qty: Optional[float] = Field(default=None, ge=0)
+    chef_staff_cost_rate: Optional[float] = Field(default=None, ge=0)
+    chef_staff_cost: Optional[float] = Field(default=None, ge=0)
 
     full_day_service_qty: Optional[float] = Field(default=None, ge=0)
     full_day_service_rate: Optional[float] = Field(default=None, ge=0)
@@ -172,6 +180,10 @@ class CateringQuotationResponse(BaseModel):
     staff_cost_qty: float = 0
     staff_cost_rate: float = 0
     staff_cost: float = 0
+
+    chef_staff_cost_qty: float = 0
+    chef_staff_cost_rate: float = 0
+    chef_staff_cost: float = 0
 
     full_day_service_qty: float = 0
     full_day_service_rate: float = 0

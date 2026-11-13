@@ -10,6 +10,9 @@ class CateringQuotationController:
   def _to_response(doc: dict) -> CateringQuotationResponse:
       doc = dict(doc)
       doc["id"] = str(doc.pop("_id"))
+      for key in ("chef_staff_cost_qty", "chef_staff_cost_rate", "chef_staff_cost"):
+        if doc.get(key) is None:
+          doc[key] = 0
       return CateringQuotationResponse(**doc)
 
   @staticmethod
@@ -23,23 +26,27 @@ class CateringQuotationController:
     food_cost = round(food_cost_qty * food_cost_rate, 2)
 
     staff_cost_qty = float(data.get("staff_cost_qty", 0) or 0)
-    staff_cost_rate = float(data.get("staff_cost_rate", 0) or 0)
+    staff_cost_rate = 125
     staff_cost = round(staff_cost_qty * staff_cost_rate, 2)
 
-    full_day_service_qty = float(data.get("full_day_service_qty", 0) or 0)
-    full_day_service_rate = float(data.get("full_day_service_rate", 0) or 0)
-    full_day_service = round(full_day_service_qty * full_day_service_rate, 2)
+    chef_staff_cost_qty = float(data.get("chef_staff_cost_qty", 0) or 0)
+    chef_staff_cost_rate = 200
+    chef_staff_cost = round(chef_staff_cost_qty * chef_staff_cost_rate, 2)
 
-    half_day_service_qty = float(data.get("half_day_service_qty", 0) or 0)
-    half_day_service_rate = float(data.get("half_day_service_rate", 0) or 0)
-    half_day_service = round(half_day_service_qty * half_day_service_rate, 2)
+    full_day_service_qty = 0
+    full_day_service_rate = 0
+    full_day_service = 0
 
-    outsourced_service_qty = float(data.get("outsourced_service_qty", 0) or 0)
-    outsourced_service_rate = float(data.get("outsourced_service_rate", 0) or 0)
-    outsourced_service = round(outsourced_service_qty * outsourced_service_rate, 2)
+    half_day_service_qty = 0
+    half_day_service_rate = 0
+    half_day_service = 0
+
+    outsourced_service_qty = 0
+    outsourced_service_rate = 0
+    outsourced_service = 0
 
     transport_qty = float(data.get("transport_qty", 0) or 0)
-    transport_rate = float(data.get("transport_rate", 0) or 0)
+    transport_rate = 300
     transport = round(transport_qty * transport_rate, 2)
 
     decoration_qty = float(data.get("decoration_qty", 0) or 0)
@@ -54,7 +61,7 @@ class CateringQuotationController:
     other_rentals_rate = float(data.get("other_rentals_rate", 0) or 0)
     other_rentals = round(other_rentals_qty * other_rentals_rate, 2)
 
-    total_c2 = round( food_cost + staff_cost + full_day_service + half_day_service + outsourced_service, 2)
+    total_c2 = round(food_cost + staff_cost + chef_staff_cost, 2)
 
     total_c3 = round(transport + decoration + glasses_etc + other_rentals, 2)
 
@@ -79,6 +86,10 @@ class CateringQuotationController:
       "staff_cost_qty": staff_cost_qty,
       "staff_cost_rate": staff_cost_rate,
       "staff_cost": staff_cost,
+
+      "chef_staff_cost_qty": chef_staff_cost_qty,
+      "chef_staff_cost_rate": chef_staff_cost_rate,
+      "chef_staff_cost": chef_staff_cost,
 
       "full_day_service_qty": full_day_service_qty,
       "full_day_service_rate": full_day_service_rate,
@@ -120,14 +131,19 @@ class CateringQuotationController:
   def _sync_pax_rates(data: dict) -> dict:
       estimated_pax = float(data.get("estimated_pax", 0) or 0)
       quoted_price_per_pax = float(data.get("quoted_price_per_pax", 0) or 0)
-      food_cost_per_pax = float(data.get("food_cost_per_pax", 0) or 0)
+      food_cost_per_pax = round(quoted_price_per_pax * 0.33, 2)
 
       if estimated_pax > 0:
           data["revenue_qty"] = estimated_pax
           data["food_cost_qty"] = estimated_pax
 
       data["revenue_rate"] = quoted_price_per_pax
+      data["food_cost_per_pax"] = food_cost_per_pax
       data["food_cost_rate"] = food_cost_per_pax
+      data["std_margin_per_pax"] = 0
+      data["staff_cost_rate"] = 125
+      data["chef_staff_cost_rate"] = 200
+      data["transport_rate"] = 300
       return data
   
   @staticmethod
